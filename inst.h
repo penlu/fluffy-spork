@@ -9,6 +9,6 @@ struct inst {
   struct clause *c; // clause list
 };
 
-int parse(struct inst *inst);       // parse an inst from stdin
-void show_inst(struct inst *inst);  // print dump of an inst
-void free_inst(struct inst *inst);  // free the contents of an inst
+int inst_parse(struct inst *inst);  // parse an inst from stdin
+void inst_show(struct inst *inst);  // print dump of an inst
+void inst_free(struct inst *inst);  // free the contents of an inst

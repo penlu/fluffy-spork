@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "parse.h"
+#include "inst.h"
 
-int parse(struct inst *inst) {
+int inst_parse(struct inst *inst) {
   // read from stdin
   char buf[1024]; // if a clause is longer than 1024 chars, so help me god
 
@@ -73,7 +73,7 @@ int parse(struct inst *inst) {
   return 0;
 }
 
-void show_inst(struct inst *inst) {
+void inst_show(struct inst *inst) {
   printf("%d\n", inst->N);
   printf("%d\n", inst->M);
   for (int i = 0; i < inst->M; i++) {
@@ -85,7 +85,7 @@ void show_inst(struct inst *inst) {
   }
 }
 
-void free_inst(struct inst *inst) {
+void inst_free(struct inst *inst) {
   for (int i = 0; i < inst->M; i++) {
     free(inst->c[i].l);
   }
