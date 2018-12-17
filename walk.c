@@ -1,10 +1,13 @@
-// simple sat solve via walksat
-// invoke with: ./walksat steps prob*100
-// e.g.: ./walksat 10000000 30
-// at every iteration, walksat picks a random unsat clause
-// then with some probability it flips a random var in that clause
-// otherwise it flips the var that will minimize the number of clauses
-// still unsat
+// Simple sat solve via walksat.
+
+// Invoke with:
+// ./walk steps prob*100
+// e.g.:
+// ./walk 10000 30
+
+// At every iteration, walksat picks a random unsat clause, then
+// with some probability it flips a random var in that clause; otherwise it
+// flips the var that will minimize the number of clauses that are still unsat.
 
 // provide the instance on stdin
 #include <stdio.h>
@@ -18,11 +21,11 @@
 
 //#define MAX_STEPS (1 << 24)
 //#define P_PARAM 30
-#define PRINT_FREQ 1
+#define PRINT_FREQ 100
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
-    printf("./walksat steps prob*100\n");
+    printf("./walk steps prob*100\n");
     exit(0);
   }
 
