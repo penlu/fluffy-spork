@@ -1,4 +1,4 @@
-FLAGS=--std=c11 -O0 -g
+FLAGS=--std=gnu11 -O0 -g
 
 all: randsat walk
 

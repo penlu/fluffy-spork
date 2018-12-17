@@ -36,7 +36,9 @@ int main(int argc, char *argv[]) {
   // set random seed
   if (argc == 4) {
     // use current time
-    srand(time(NULL));
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    srand((unsigned int) ts.tv_nsec);
   } else if (argc == 5) {
     // use user-provided seed
     srand(strtol(argv[4], NULL, 0));

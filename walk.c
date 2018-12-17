@@ -30,7 +30,9 @@ int main(int argc, char *argv[]) {
   int max_steps = strtol(argv[1], NULL, 0);
   int p_param = strtol(argv[2], NULL, 0);
 
-  srand(time(NULL));
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  srand((unsigned int) ts.tv_nsec);
 
   // parse input instance
   struct inst inst;
@@ -133,13 +135,15 @@ int main(int argc, char *argv[]) {
       for (int b = 0; b < ff.k; b++) {
         if (funsat[b] < min) {
           min = funsat[b];
+          ties = 0;
         } else if (funsat[b] == min) {
           ties++;
         }
       }
 
       // random pick with tiebreaker
-      int tiebreak = urand(ties + 1);
+      int orig = urand(ties + 1);
+      int tiebreak = orig;
       for (int b = 0; b < ff.k; b++) {
         if (funsat[b] == min && tiebreak == 0) {
           flip = b;
