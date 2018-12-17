@@ -26,6 +26,8 @@ struct graph {
   struct node_f *f; // clause list
 };
 
-void graph_make(struct graph *graph, struct inst *inst);
-void graph_show(struct graph *graph);
-void graph_free(struct graph *graph);
+void graph_make(struct graph *graph, struct inst *inst);  // make graph from inst
+void graph_show(struct graph *graph);   // print dump of a graph
+void graph_free(struct graph *graph);   // free the contents of a graph
+
+void graph_check(struct graph *graph);  // sanity check a graph

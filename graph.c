@@ -1,7 +1,9 @@
 // create factor graph from instance
+// don't run on malformed instance
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "inst.h"
 #include "graph.h"
@@ -64,7 +66,7 @@ void graph_make(struct graph *graph, struct inst *inst) {
 void graph_show(struct graph *graph) {
   printf("VARIABLES (%d):\n", graph->N);
   for (int i = 0; i < graph->N; i++) {
-    printf("%d: ", i);
+    printf("%d: ", graph->v[i].i);
     for (int e = 0; e < graph->v[i].k; e++) {
       printf("(%d, %d) ", graph->v[i].f[e].j, graph->v[i].f[e].f->a);
     }
@@ -74,7 +76,7 @@ void graph_show(struct graph *graph) {
 
   printf("CLAUSES (%d):\n", graph->M);
   for (int a = 0; a < graph->M; a++) {
-    printf("%d: ", a);
+    printf("%d: ", graph->f[a].a);
     for (int e = 0; e < graph->f[a].k; e++) {
       printf("(%d, %d) ", graph->f[a].v[e].j, graph->f[a].v[e].v->i);
     }
@@ -91,4 +93,27 @@ void graph_free(struct graph *graph) {
   }
   free(graph->v);
   free(graph->f);
+}
+
+// sanity checking a graph:
+// - check variable and clause numbering (assume in-order for now)
+// - check edges are connected right
+void graph_check(struct graph *graph) {
+  // TODO
+  // annoying: checking it appears the right number of times...
+  /*for (int i = 0; i < graph->N; i++) {
+    assert(graph->v[i].i == i);
+    for (int e = 0; e < graph->v[i].k; e++) {
+      // search for this variable in the connected clause
+      int k = graph->v[i].f[e].f->k;
+      struct edge *v = graph->v[i].f[e].f->v;
+      for (int b = 0; b < k; b++) {
+        
+      }
+    }
+  }
+
+  for (int a = 0; a < graph->M; a++) {
+
+  }*/
 }
