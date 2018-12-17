@@ -13,7 +13,7 @@
  * [lits...] - literals in first clause
  * ...
  * Literals are numbers, i for some variable and -i for its negation.
- * Variable index will be in [0, N).
+ * Variable index will be in [1, N].
  */
 
 #include <stdio.h>
@@ -56,10 +56,10 @@ int main(int argc, char *argv[]) {
   printf("%d\n", M);
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < k; j++) {
-      // variable
-      int v = urand(N);
+      // random variable
+      int v = urand(N) + 1;
 
-      // negation
+      // randomly negated
       if (rand() % 2) {
         printf("%d ", v);
       } else {

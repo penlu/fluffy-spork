@@ -31,7 +31,7 @@ int parse(struct inst *inst) {
     return -1;
   }
 
-  struct clause *c = calloc(M, sizeof(clause));
+  struct clause *c = calloc(M, sizeof(struct clause));
   for (int i = 0; i < M; i++) {
     // read a clause
     if (!fgets(buf, sizeof(buf), stdin)) {
@@ -45,7 +45,8 @@ int parse(struct inst *inst) {
     // expect a space before the newline
     while (*n != '\n') {
       k++;
-      realloc(l, k * sizeof(int)); // can't handle clauses w/ more than 2^28 lits, bite me
+      l = realloc(l, k * sizeof(int));
+      // can't handle clauses w/ more than 2^28 lits, bite me
 
       // find and null the next space
       char *s = n;
