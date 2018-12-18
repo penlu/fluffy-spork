@@ -3,4 +3,5 @@
 *.o
 randsat
 walk
+warn
 out/

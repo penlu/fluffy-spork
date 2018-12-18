@@ -48,7 +48,10 @@ int main(int argc, char *argv[]) {
 
   // XXX parallel update; is the random order important?
   int steps = 0;
-  while (1) {
+  while (graph.N != 0) {
+    assert(graph.N > 0);
+    assert(graph.M >= 0);
+
     // create original warning storage
     // u[i][a] is warning message a->i
     int **pu = calloc(graph.N, sizeof(int*));
@@ -148,6 +151,9 @@ int main(int argc, char *argv[]) {
     int *c = calloc(graph.N, sizeof(int));
     int unsat = 0;
     for (int i = 0; i < graph.N; i++) {
+      int pc = 0;
+      int nc = 0;
+
       for (int a = 0; a < graph.v[i].k; a++) {
         assert(pu[i][a] == 0 || pu[i][a] == 1);
 
@@ -155,17 +161,16 @@ int main(int argc, char *argv[]) {
         H[i] -= graph.v[i].f[a].j * pu[i][a];
 
         // contradiction number
-        int pc = 0;
-        int nc = 0;
         if (graph.v[i].f[a].j == -1) {
           pc += pu[i][a];
         } else {
           nc += pu[i][a];
         }
-        if (pc * nc > 0) {
-          c[i] = 1;
-          unsat = 1;
-        }
+      }
+
+      if (pc * nc > 0) {
+        c[i] = 1;
+        unsat = 1;
       }
     }
 
@@ -179,8 +184,11 @@ int main(int argc, char *argv[]) {
     free(c);
 
     if (unsat) {
-      printf("%d iters\n", iters);
+      printf("%d steps %d iters\n", steps, iters);
       printf("unsat\n");
+
+      free(H);
+
       break;
     }
 
@@ -196,9 +204,11 @@ int main(int argc, char *argv[]) {
       if (H[i] > 0) {
         fv++;
         v[i] = 1;
+        printf("step %d: set %d to 1\n", steps, orig_vi[i]);
       } else if (H[i] < 0) {
         fv++;
         v[i] = -1;
+        printf("step %d: set %d to 0\n", steps, orig_vi[i]);
       } else {
         nv[i] = vi++;
       }
@@ -213,6 +223,7 @@ int main(int argc, char *argv[]) {
       // fix a random variable
       int rv = urand(graph.N);
       v[rv] = urand(2) * 2 - 1;
+      printf("step %d: set %d to %d\n", steps, orig_vi[rv], v[rv]);
 
       // reset new indices
       free(nv);
@@ -227,6 +238,14 @@ int main(int argc, char *argv[]) {
     }
     assert(fv + vi == graph.N);
 
+    // save fixed variables
+    for (int i = 0; i < graph.N; i++) {
+      if (v[i] != 0) {
+        assert(orig_v[orig_vi[i]] == 0);
+        orig_v[orig_vi[i]] = v[i];
+      }
+    }
+
     // compute sat clauses
     // 1: satisfied, 0: still unsat
     int *f = calloc(graph.M, sizeof(int));
@@ -236,7 +255,7 @@ int main(int argc, char *argv[]) {
     for (int a = 0; a < graph.M; a++) {
       for (int i = 0; i < graph.f[a].k; i++) {
         int j = graph.f[a].v[i].v->i;
-        if (graph.f[a].v[i].j * (1 - v[j]*2) == 1) {
+        if (graph.f[a].v[i].j * v[j] == -1) {
           ff++;
           f[a] = 1;
           break;
@@ -261,17 +280,6 @@ int main(int argc, char *argv[]) {
       printf("%d vars unset\n", ngraph.N);
     }
 
-    if (ngraph.N == 0) {
-      printf("sat\n");
-      // TODO output sat assignment...
-      // need to track which vars are still what
-      free(v);
-      free(nv);
-      free(f);
-      free(nf);
-      break;
-    }
-
     // create storage for unfixed variables
     ngraph.v = calloc(ngraph.N, sizeof(struct node_v));
     for (int i = 0; i < ngraph.N; i++) {
@@ -287,13 +295,18 @@ int main(int argc, char *argv[]) {
     // create new edges
     // implicitly skip edges for set vars:
     // if the set var sat a clause, then that clause is already gone
-    // if the set var doesn't sat a clause, then it's already excluded
+    // if the set var doesn't sat a clause, then we still exclude it
+    int *new_vi = calloc(ngraph.N, sizeof(int));
     for (int i = 0; i < graph.N; i++) {
       if (v[i] == 0) { // variable still extant
+        int ni = nv[i];
+
+        // track original index
+        new_vi[ni] = orig_vi[i];
+
         for (int a = 0; a < graph.v[i].k; a++) {
           int b = graph.v[i].f[a].f->a;
           if (f[b] == 0) { // factor not sat yet
-            int ni = nv[i];
             int na = nf[b];
 
             struct edge e;
@@ -314,6 +327,8 @@ int main(int argc, char *argv[]) {
         }
       }
     }
+    free(orig_vi);
+    orig_vi = new_vi;
 
     // clean up variable/clause-fixing scratch
     free(v);
@@ -326,6 +341,38 @@ int main(int argc, char *argv[]) {
     graph = ngraph;
 
     steps++;
+  }
+
+  if (graph.N == 0) {
+    printf("%d steps\n", steps);
+    printf("sat\n");
+
+    // output sat assignment
+    for (int i = 0; i < N; i++) {
+      assert(orig_v[i] != 0);
+      printf("%d ", (orig_v[i] + 1) / 2);
+    }
+    printf("\n");
+  }
+
+  // double-check sat of final assignment
+  for (int a = 0; a < M; a++) {
+    struct clause c = inst.c[a];
+    int sat = 0;
+    for (int i = 0; i < c.k; i++) {
+      int v = c.l[i] > 0 ? c.l[i] : -c.l[i];
+      int t = c.l[i] > 0 ? 1 : 0;
+      printf("%d:%d ", c.l[i], orig_v[v - 1]);
+      if ((orig_v[v - 1] + 1) / 2 == t) {
+        sat = 1;
+        break;
+      }
+    }
+    printf("\n");
+    if (sat == 0) {
+      printf("UNSAT: %d\n", a);
+      break;
+    }
   }
 
   // clean up
