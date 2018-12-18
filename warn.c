@@ -13,7 +13,7 @@
 #include "inst.h"
 #include "util.h"
 
-#define PRINT_FREQ 1
+#define PRINT_FREQ 100
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -38,9 +38,18 @@ int main(int argc, char *argv[]) {
   struct graph graph;
   graph_make(&graph, &inst);
 
+  // track original indices to know the final sat assignment
+  int *orig_vi = calloc(graph.N, sizeof(int));
+  int *orig_v = calloc(graph.N, sizeof(int));
+  for (int i = 0; i < graph.N; i++) {
+    orig_vi[i] = i;
+    orig_v[i] = 0;
+  }
+
   // XXX parallel update; is the random order important?
+  int steps = 0;
   while (1) {
-    // create warning storage
+    // create original warning storage
     // u[i][a] is warning message a->i
     int **pu = calloc(graph.N, sizeof(int*));
     for (int i = 0; i < graph.N; i++) {
@@ -60,12 +69,6 @@ int main(int argc, char *argv[]) {
     for (iters = 0; iters < max_iters && !converged; iters++) {
       converged = 1;
 
-      // create new warning storage
-      // u[i][a] is warning message a->i
-      int **u = calloc(graph.N, sizeof(int*));
-      for (int i = 0; i < graph.N; i++) {
-        u[i] = calloc(graph.v[i].k, sizeof(int));
-      }
       // create cavity field storage
       // h[a][i] is cavity field i->a
       int **h = calloc(graph.M, sizeof(int*));
@@ -80,22 +83,29 @@ int main(int argc, char *argv[]) {
           struct node_v *vi = graph.f[a].v[i].v;
           h[a][i] = 0;
           for (int b = 0; b < vi->k; b++) {
-            if (a != vi->f[b].f->a) {
-              h[a][i] -= vi->f[b].j * pu[i][b];
+            if (a != vi->f[b].f->a) { // u_{b -> i} for a != b
+              h[a][i] -= vi->f[b].j * pu[vi->i][b];
             }
           }
         }
       }
 
-      // update warnings u
+      // create new warning storage
+      // u[i][a] is warning message a->i
+      int **u = calloc(graph.N, sizeof(int*));
+      for (int i = 0; i < graph.N; i++) {
+        u[i] = calloc(graph.v[i].k, sizeof(int));
+      }
+
+      // compute new warnings u
       for (int i = 0; i < graph.N; i++) {
         for (int a = 0; a < graph.v[i].k; a++) {
           // calculate new u[i][a], u_{a -> i}
           struct node_f *fa = graph.v[i].f[a].f;
           u[i][a] = 1;
           for (int j = 0; j < fa->k; j++) {
-            if (i != fa->v[j].v->i) {
-              u[i][a] *= (h[a][j] * fa->v[j].j > 0) ? 1 : 0;
+            if (i != fa->v[j].v->i) { // h_{j -> a} for i != j
+              u[i][a] *= (h[fa->a][j] * fa->v[j].j > 0) ? 1 : 0;
             }
           }
           if (u[i][a] != pu[i][a]) {
@@ -123,6 +133,13 @@ int main(int argc, char *argv[]) {
     if (iters == max_iters) {
       printf("%d iters\n", iters);
       printf("unconverged\n");
+
+      // clean up warnings
+      for (int i = 0; i < graph.N; i++) {
+        free(pu[i]);
+      }
+      free(pu);
+
       break;
     }
 
@@ -132,6 +149,8 @@ int main(int argc, char *argv[]) {
     int unsat = 0;
     for (int i = 0; i < graph.N; i++) {
       for (int a = 0; a < graph.v[i].k; a++) {
+        assert(pu[i][a] == 0 || pu[i][a] == 1);
+
         // local field
         H[i] -= graph.v[i].f[a].j * pu[i][a];
 
@@ -150,21 +169,24 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    if (unsat) {
-      printf("%d iters\n", iters);
-      printf("unsat\n");
-      break;
-    }
-
     // clean up warnings
     for (int i = 0; i < graph.N; i++) {
       free(pu[i]);
     }
     free(pu);
 
+    // clean up contradiction numbers
+    free(c);
+
+    if (unsat) {
+      printf("%d iters\n", iters);
+      printf("unsat\n");
+      break;
+    }
+
     // fix variables according to warnings and simplify clauses
 
-    // find fixed variables
+    // compute fixed variables
     // 0: don't fix, +1: fix 1, -1: fix 0
     int *v = calloc(graph.N, sizeof(int));
     int fv = 0; // fixed variable count
@@ -181,6 +203,29 @@ int main(int argc, char *argv[]) {
         nv[i] = vi++;
       }
     }
+    assert(fv + vi == graph.N);
+
+    // clean up local fields
+    free(H);
+
+    // all local fields zero: fix an arbitrary variable
+    if (vi == graph.N) {
+      // fix a random variable
+      int rv = urand(graph.N);
+      v[rv] = urand(2) * 2 - 1;
+
+      // reset new indices
+      free(nv);
+      fv = 1;
+      nv = calloc(graph.N, sizeof(int));
+      vi = 0;
+      for (int i = 0; i < graph.N; i++) {
+        if (i != rv) {
+          nv[i] = vi++;
+        }
+      }
+    }
+    assert(fv + vi == graph.N);
 
     // compute sat clauses
     // 1: satisfied, 0: still unsat
@@ -190,7 +235,8 @@ int main(int argc, char *argv[]) {
     int fa = 0;
     for (int a = 0; a < graph.M; a++) {
       for (int i = 0; i < graph.f[a].k; i++) {
-        if (graph.f[a].v[i].j * (1 - v[graph.f[a].v[i].v->i]*2) == 1) {
+        int j = graph.f[a].v[i].v->i;
+        if (graph.f[a].v[i].j * (1 - v[j]*2) == 1) {
           ff++;
           f[a] = 1;
           break;
@@ -200,18 +246,29 @@ int main(int argc, char *argv[]) {
         nf[a] = fa++;
       }
     }
+    assert(ff + fa == graph.M);
 
     // construct new decimated graph
     struct graph ngraph;
     ngraph.N = graph.N - fv;
     ngraph.M = graph.M - ff;
+    assert(ngraph.N == vi);
+    assert(ngraph.M == fa);
     ngraph.v = NULL;
     ngraph.f = NULL;
+
+    if (steps % PRINT_FREQ == 0) {
+      printf("%d vars unset\n", ngraph.N);
+    }
 
     if (ngraph.N == 0) {
       printf("sat\n");
       // TODO output sat assignment...
       // need to track which vars are still what
+      free(v);
+      free(nv);
+      free(f);
+      free(nf);
       break;
     }
 
@@ -234,9 +291,10 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < graph.N; i++) {
       if (v[i] == 0) { // variable still extant
         for (int a = 0; a < graph.v[i].k; a++) {
-          if (f[graph.v[i].f[a].f->a] == 0) { // factor not sat yet
+          int b = graph.v[i].f[a].f->a;
+          if (f[b] == 0) { // factor not sat yet
             int ni = nv[i];
-            int na = nf[a];
+            int na = nf[b];
 
             struct edge e;
             e.j = graph.v[i].f[a].j; // copy edge coefficient
@@ -257,12 +315,22 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    // clean up variable/clause-fixing scratch
+    free(v);
+    free(nv);
+    free(f);
+    free(nf);
+
     // store new graph
     graph_free(&graph);
     graph = ngraph;
+
+    steps++;
   }
 
   // clean up
+  free(orig_vi);
+  free(orig_v);
   inst_free(&inst);
   graph_free(&graph);
 
