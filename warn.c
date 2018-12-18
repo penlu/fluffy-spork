@@ -60,9 +60,15 @@ int main(int argc, char *argv[]) {
     for (iters = 0; iters < max_iters && !converged; iters++) {
       converged = 1;
 
+      // create new warning storage
+      // u[i][a] is warning message a->i
+      int **u = calloc(graph.N, sizeof(int*));
+      for (int i = 0; i < graph.N; i++) {
+        u[i] = calloc(graph.v[i].k, sizeof(int));
+      }
       // create cavity field storage
       // h[a][i] is cavity field i->a
-      int **h = calloc(graph.N, sizeof(int*));
+      int **h = calloc(graph.M, sizeof(int*));
       for (int a = 0; a < graph.M; a++) {
         h[a] = calloc(graph.f[a].k, sizeof(int));
       }
@@ -117,7 +123,7 @@ int main(int argc, char *argv[]) {
     if (iters == max_iters) {
       printf("%d iters\n", iters);
       printf("unconverged\n");
-      exit(0);
+      break;
     }
 
     // compute local fields and contradiction numbers
@@ -127,17 +133,16 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < graph.N; i++) {
       for (int a = 0; a < graph.v[i].k; a++) {
         // local field
-        H[i] -= graph.v[i].f[a].j * u[i][a];
+        H[i] -= graph.v[i].f[a].j * pu[i][a];
 
         // contradiction number
         int pc = 0;
         int nc = 0;
         if (graph.v[i].f[a].j == -1) {
-          pc += u[i][a];
+          pc += pu[i][a];
         } else {
-          nc += u[i][a];
+          nc += pu[i][a];
         }
-
         if (pc * nc > 0) {
           c[i] = 1;
           unsat = 1;
@@ -148,12 +153,23 @@ int main(int argc, char *argv[]) {
     if (unsat) {
       printf("%d iters\n", iters);
       printf("unsat\n");
+      break;
     }
 
-    // fix variables according to warnings
+    // clean up warnings
+    for (int i = 0; i < graph.N; i++) {
+      free(pu[i]);
+    }
+    free(pu);
+
+    // fix variables according to warnings and simplify clauses
+
+    // find fixed variables
     // 0: don't fix, +1: fix 1, -1: fix 0
     int *v = calloc(graph.N, sizeof(int));
-    int fv = 0; // fixed variables
+    int fv = 0; // fixed variable count
+    int *nv = calloc(graph.N, sizeof(int)); // new variable index
+    int vi = 0;
     for (int i = 0; i < graph.N; i++) {
       if (H[i] > 0) {
         fv++;
@@ -161,13 +177,17 @@ int main(int argc, char *argv[]) {
       } else if (H[i] < 0) {
         fv++;
         v[i] = -1;
+      } else {
+        nv[i] = vi++;
       }
     }
 
     // compute sat clauses
-    // 1 if satisfied, 0 otherwise
+    // 1: satisfied, 0: still unsat
     int *f = calloc(graph.M, sizeof(int));
     int ff = 0; // fixed factors
+    int *nf = calloc(graph.M, sizeof(int)); // new clause index
+    int fa = 0;
     for (int a = 0; a < graph.M; a++) {
       for (int i = 0; i < graph.f[a].k; i++) {
         if (graph.f[a].v[i].j * (1 - v[graph.f[a].v[i].v->i]*2) == 1) {
@@ -175,6 +195,9 @@ int main(int argc, char *argv[]) {
           f[a] = 1;
           break;
         }
+      }
+      if (f[a] == 0) {
+        nf[a] = fa++;
       }
     }
 
@@ -184,6 +207,13 @@ int main(int argc, char *argv[]) {
     ngraph.M = graph.M - ff;
     ngraph.v = NULL;
     ngraph.f = NULL;
+
+    if (ngraph.N == 0) {
+      printf("sat\n");
+      // TODO output sat assignment...
+      // need to track which vars are still what
+      break;
+    }
 
     // create storage for unfixed variables
     ngraph.v = calloc(ngraph.N, sizeof(struct node_v));
@@ -198,23 +228,32 @@ int main(int argc, char *argv[]) {
     }
 
     // create new edges
-    int ni = 0;
+    // implicitly skip edges for set vars:
+    // if the set var sat a clause, then that clause is already gone
+    // if the set var doesn't sat a clause, then it's already excluded
     for (int i = 0; i < graph.N; i++) {
-      if (v[i] == 0) {
+      if (v[i] == 0) { // variable still extant
         for (int a = 0; a < graph.v[i].k; a++) {
-          if (f[graph.v[i].f[a].f->a] == 0) {
-            struct edge e;
-            e.j = graph.v[i].f[a].j;
-            e.v = &ngraph.v[ni];
-            e.f = &ngraph.f[nf[a]];
+          if (f[graph.v[i].f[a].f->a] == 0) { // factor not sat yet
+            int ni = nv[i];
+            int na = nf[a];
 
-            ngraph.v[ni].k++;
-            int k = ngraph.v[ni].k;
-            ngraph.v[ni].f = realloc(ngraph.v[ni].f, k * sizeof(struct edge));
-            ngraph.v[ni].f[k - 1] = e
+            struct edge e;
+            e.j = graph.v[i].f[a].j; // copy edge coefficient
+            e.v = &ngraph.v[ni];
+            e.f = &ngraph.f[na];
+
+            // add edge to variable
+            int vk = ++ngraph.v[ni].k;
+            ngraph.v[ni].f = realloc(ngraph.v[ni].f, vk * sizeof(struct edge));
+            ngraph.v[ni].f[vk - 1] = e;
+
+            // add edge to clause
+            int fk = ++ngraph.f[na].k;
+            ngraph.f[na].v = realloc(ngraph.f[na].v, fk * sizeof(struct edge));
+            ngraph.f[na].v[fk - 1] = e;
           }
         }
-        ni++;
       }
     }
 

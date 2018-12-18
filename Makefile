@@ -1,7 +1,7 @@
 #FLAGS=--std=gnu11 -O0 -g
 FLAGS=--std=gnu11 -O3
 
-all: randsat walk
+all: randsat walk warn
 
 clean:
 	rm -f randsat walk inst.o graph.o util.o
@@ -20,5 +20,8 @@ randsat: randsat.c util.o util.h
 
 walk: walk.c inst.o inst.h graph.o graph.h util.o util.h
 	gcc $(FLAGS) -o walk walk.c inst.o graph.o util.o
+
+warn: warn.c inst.o inst.h graph.o graph.h util.o util.h
+	gcc $(FLAGS) -o warn warn.c inst.o graph.o util.o
 
 .PHONY: all clean
