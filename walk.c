@@ -175,6 +175,12 @@ int main(int argc, char *argv[]) {
     printf("unsat after %d steps\n", steps);
   }
 
+  // double check sat of final assignment
+  int unsat_c = inst_check(&inst, v);
+  if (unsat_c) {
+    printf("UNSAT! clause %d\n", unsat_c);
+  }
+
   // clean up
   inst_free(&inst);
   graph_free(&graph);

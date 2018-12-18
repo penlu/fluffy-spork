@@ -73,6 +73,31 @@ int inst_parse(struct inst *inst) {
   return 0;
 }
 
+// return 0 if sat
+// return clause number (one-indexed) if unsat
+int inst_check(struct inst *inst, int *v) {
+  for (int a = 0; a < inst->M; a++) {
+    struct clause c = inst->c[a];
+
+    int sat = 0;
+    for (int i = 0; i < c.k; i++) {
+      int vi = c.l[i] > 0 ? c.l[i] : -c.l[i];
+      int t = c.l[i] > 0 ? 1 : 0;
+
+      if (v[vi - 1] == t) {
+        sat = 1;
+        break;
+      }
+    }
+
+    if (sat == 0) {
+      return a + 1;
+    }
+  }
+
+  return 0;
+}
+
 void inst_show(struct inst *inst) {
   printf("%d\n", inst->N);
   printf("%d\n", inst->M);

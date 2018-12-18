@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 
     // check for convergence
     if (iters == max_iters) {
-      printf("%d iters\n", iters);
+      printf("%d steps %d iters\n", steps, iters);
       printf("unconverged\n");
 
       // clean up warnings
@@ -204,11 +204,9 @@ int main(int argc, char *argv[]) {
       if (H[i] > 0) {
         fv++;
         v[i] = 1;
-        printf("step %d: set %d to 1\n", steps, orig_vi[i]);
       } else if (H[i] < 0) {
         fv++;
         v[i] = -1;
-        printf("step %d: set %d to 0\n", steps, orig_vi[i]);
       } else {
         nv[i] = vi++;
       }
@@ -223,7 +221,6 @@ int main(int argc, char *argv[]) {
       // fix a random variable
       int rv = urand(graph.N);
       v[rv] = urand(2) * 2 - 1;
-      printf("step %d: set %d to %d\n", steps, orig_vi[rv], v[rv]);
 
       // reset new indices
       free(nv);
@@ -356,24 +353,16 @@ int main(int argc, char *argv[]) {
   }
 
   // double-check sat of final assignment
-  for (int a = 0; a < M; a++) {
-    struct clause c = inst.c[a];
-    int sat = 0;
-    for (int i = 0; i < c.k; i++) {
-      int v = c.l[i] > 0 ? c.l[i] : -c.l[i];
-      int t = c.l[i] > 0 ? 1 : 0;
-      printf("%d:%d ", c.l[i], orig_v[v - 1]);
-      if ((orig_v[v - 1] + 1) / 2 == t) {
-        sat = 1;
-        break;
-      }
-    }
-    printf("\n");
-    if (sat == 0) {
-      printf("UNSAT: %d\n", a);
-      break;
-    }
+  int *assigns = calloc(N, sizeof(int));
+  for (int i = 0; i < N; i++) {
+    assigns[i] = (orig_v[i] + 1) / 2;
   }
+  int unsat_c = inst_check(&inst, assigns);
+  if (unsat_c) {
+    printf("UNSAT! clause %d\n", unsat_c);
+  }
+  assert(graph.N != 0 || unsat_c == 0);
+  free(assigns);
 
   // clean up
   free(orig_vi);

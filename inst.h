@@ -10,5 +10,6 @@ struct inst {
 };
 
 int inst_parse(struct inst *inst);  // parse an inst from stdin
+int inst_check(struct inst *inst, int *v); // check a var assignment for sat
 void inst_show(struct inst *inst);  // print dump of an inst
 void inst_free(struct inst *inst);  // free the contents of an inst

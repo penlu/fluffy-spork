@@ -1,5 +1,5 @@
-FLAGS=--std=gnu11 -O0 -g
-#FLAGS=--std=gnu11 -O3
+#FLAGS=--std=gnu11 -O0 -g
+FLAGS=--std=gnu11 -O3
 
 all: randsat walk warn
 
