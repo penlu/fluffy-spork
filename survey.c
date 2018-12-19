@@ -15,7 +15,7 @@
 #include "util.h"
 
 #define PRINT_FREQ 100
-#define TOLERANCE 0.0001
+#define TOLERANCE 0.000001
 
 int main(int argc, char *argv[]) {
   if (argc != 4) {
@@ -71,6 +71,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < graph.N; i++) {
       for (int a = 0; a < graph.v[i].k; a++) {
         p_eta[i][a] = (double) urand(1 << 30) / ((1 << 30) - 1);
+        assert(0 <= p_eta[i][a] && p_eta[i][a] <= 1);
         edges++;
       }
     }
@@ -208,6 +209,11 @@ int main(int argc, char *argv[]) {
       int *c;
       int walk_steps = walk(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
 
+      // save walk settings
+      for (int i = 0; i < graph.N; i++) {
+        orig_v[orig_vi[i]] = v[i] * 2 - 1;
+      }
+
       // process sat/unsat here
       if (walk_steps < max_steps) {
         printf("%d steps %d walk\n", steps, walk_steps);
@@ -224,11 +230,13 @@ int main(int argc, char *argv[]) {
         printf("unknown\n");
       }
 
-      // save walk settings
+      // clean up warnings
       for (int i = 0; i < graph.N; i++) {
-        orig_v[orig_vi[i]] = v[i];
+        free(p_eta[i]);
       }
+      free(p_eta);
 
+      // clean up walk
       free(v);
       free(c);
 
@@ -261,9 +269,22 @@ int main(int argc, char *argv[]) {
       double pi_0 = p0;
 
       double denom = pi_p + pi_m + pi_0;
-      Wp[i] = pi_p / denom;
-      Wm[i] = pi_m / denom;
+      // TODO bug (maybe not here), fp exception
+      if (pi_p == 0 && denom == 0) {
+        Wp[i] = 0;
+      } else {
+        Wp[i] = pi_p / denom;
+      }
+      if (pi_m == 0 && denom == 0) {
+        Wm[i] = 0;
+      } else {
+        Wm[i] = pi_m / denom;
+      }
       W0[i] = 1 - Wp[i] - Wm[i];
+
+      assert(0 <= Wp[i] && Wp[i] <= 1);
+      assert(0 <= Wm[i] && Wm[i] <= 1);
+      assert(0 <= W0[i] && W0[i] <= 1);
     }
 
     // clean up warnings

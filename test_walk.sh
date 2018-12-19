@@ -37,11 +37,20 @@ done
 mkdir -p out
 rm -f out/*.txt
 
-for i in `seq 1 $n`; do
+run_test () {
+  N=$1
+  M=$2
+  S=$3
+  p=$4
+  i=$5
   ./randsat 3 $N $M | ./walk $S $p > out/$i.txt;
   if [ $? -ne 0 ]; then
     echo $?;
   fi;
-done
+}
+
+export -f run_test
+
+seq 1 $n | parallel -j8 run_test $N $M $S $p
 
 grep "unknown" out/* | wc -l
