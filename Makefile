@@ -1,10 +1,10 @@
 FLAGS=--std=gnu11 -O0 -g
 #FLAGS=--std=gnu11 -O3
 
-all: randsat walk warn
+all: randsat walk warn survey
 
 clean:
-	rm -f randsat walk inst.o graph.o util.o
+	rm -f randsat walk warn survey inst.o graph.o util.o
 
 inst.o: inst.c inst.h
 	gcc $(FLAGS) -c inst.c

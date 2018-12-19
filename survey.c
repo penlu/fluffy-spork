@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <float.h>
 #include <time.h>
 
 #include "graph.h"
@@ -14,7 +15,7 @@
 #include "util.h"
 
 #define PRINT_FREQ 100
-#define TOLERANCE 0.0000001
+#define TOLERANCE 0.0001
 
 int main(int argc, char *argv[]) {
   if (argc != 4) {
@@ -41,6 +42,9 @@ int main(int argc, char *argv[]) {
   struct graph graph;
   graph_make(&graph, &inst);
 
+  // debug dump
+  inst_show(&inst);
+
   // track original indices to know the final sat assignment
   int *orig_vi = calloc(graph.N, sizeof(int));
   int *orig_v = calloc(graph.N, sizeof(int));
@@ -66,7 +70,7 @@ int main(int argc, char *argv[]) {
     int edges = 0;
     for (int i = 0; i < graph.N; i++) {
       for (int a = 0; a < graph.v[i].k; a++) {
-        p_eta[i][a] = (double) urand(1 << 31) / ((1 << 31) - 1);
+        p_eta[i][a] = (double) urand(1 << 30) / ((1 << 30) - 1);
         edges++;
       }
     }
@@ -137,15 +141,31 @@ int main(int argc, char *argv[]) {
           for (int j = 0; j < fa->k; j++) {
             if (i != fa->v[j].v->i) {
               double denom = pi_u[b][j] + pi_s[b][j] + pi_0[b][j];
-              eta[i][a] *= pi_u[b][j] / denom;
+              if (pi_u[b][j] == 0 && denom == 0) {
+                eta[i][a] = 0;
+              } else {
+                eta[i][a] *= pi_u[b][j] / denom;
+              }
             }
           }
+
+          assert(0 <= p_eta[i][a] && p_eta[i][a] <= 1);
+
           if (absd(eta[i][a] - p_eta[i][a]) > TOLERANCE) {
             converged = 0;
+            /*
+            printf("%d steps %d iters: %d->%d eta not yet converged (%.*e vs %.*e)\n",
+              steps, iters, a, i, DBL_DIG, eta[i][a], DBL_DIG, p_eta[i][a]);
+            */
           }
           if (absd(eta[i][a]) < TOLERANCE) {
             zeros++;
           }
+
+          /*
+          printf("%d steps %d iters: %d->%d eta is %.*e\n",
+            steps, iters, a, i, DBL_DIG, eta[i][a]);
+          */
         }
       }
 
@@ -188,10 +208,31 @@ int main(int argc, char *argv[]) {
       int *c;
       int walk_steps = walk(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
 
-      // TODO process sat/unsat here
+      // process sat/unsat here
+      if (walk_steps < max_steps) {
+        printf("%d steps %d walk\n", steps, walk_steps);
+        printf("sat\n");
+
+        // output sat assignment
+        for (int i = 0; i < N; i++) {
+          assert(orig_v[i] != 0);
+          printf("%d ", (orig_v[i] + 1) / 2);
+        }
+        printf("\n");
+      } else {
+        printf("%d steps %d walk\n", steps, walk_steps);
+        printf("unknown\n");
+      }
+
+      // save walk settings
+      for (int i = 0; i < graph.N; i++) {
+        orig_v[orig_vi[i]] = v[i];
+      }
 
       free(v);
       free(c);
+
+      break;
     }
 
     // compute biases
@@ -203,7 +244,7 @@ int main(int argc, char *argv[]) {
       double pm = 1;
       double p0 = 1;
 
-      for (int a = 0; a < vi->k; a++) {
+      for (int a = 0; a < graph.v[i].k; a++) {
         if (graph.v[i].f[a].j == -1) {
           // different edge type
           pp *= 1 - p_eta[i][a];
@@ -246,10 +287,11 @@ int main(int argc, char *argv[]) {
         fix = i;
       }
     }
+    printf("%d steps: fixed %d to %d (%.*e)\n", steps, fix, dir, DBL_DIG, max);
 
     // save fixed variable
-    assert(orig_v[orig_vi[i]] == 0);
-    orig_v[orig_vi[i]] = v[i];
+    assert(orig_v[orig_vi[fix]] == 0);
+    orig_v[orig_vi[fix]] = dir;
 
     // clean up biases
     free(Wp);
@@ -257,45 +299,53 @@ int main(int argc, char *argv[]) {
     free(W0);
 
     // compute sat clauses
-    // TODO
-    // 1: satisfied, 0: still unsat
-    int *f = calloc(graph.M, sizeof(int));
-    int ff = 0; // fixed factors
-    int *nf = calloc(graph.M, sizeof(int)); // new clause index
-    int fa = 0;
-    for (int a = 0; a < graph.M; a++) {
-      for (int i = 0; i < graph.f[a].k; i++) {
-        int j = graph.f[a].v[i].v->i;
-        if (graph.f[a].v[i].j * v[j] == -1) {
-          ff++;
-          f[a] = 1;
-          break;
-        }
+    int *f = calloc(graph.M, sizeof(int)); // 1: satisfied, 0: still unsat
+    int ff = 0; // count of satisfied factors
+    int would_ff = 0; // would be sat if we picked the other direction
+    for (int a = 0; a < graph.v[fix].k; a++) {
+      int b = graph.v[fix].f[a].f->a;
+      if (f[b] != 1 && graph.v[fix].f[a].j * dir == -1) {
+        ff++;
+        f[b] = 1;
+        printf("%d set\n", b);
       }
-      if (f[a] == 0) {
-        nf[a] = fa++;
+      if (f[b] * dir == 1) {
+        would_ff++;
       }
     }
-    assert(ff + fa == graph.M);
 
-    // TODO check sat
-    if (unsat) {
+    // we set our last variable and yet still have clauses around?
+    if (graph.N == 1 && ff != graph.M) {
       printf("%d steps %d iters\n", steps, iters);
       printf("unsat\n");
 
-      free(Wp);
-      free(Wm);
-      free(W0);
+      free(f);
 
       break;
     }
 
+    // find unfixed factors
+    int *nf = calloc(graph.M, sizeof(int)); // new clause index
+    int fa = 0;
+    printf("FA: ");
+    for (int a = 0; a < graph.M; a++) {
+      printf("%d ", f[a]);
+      if (f[a] == 0) {
+        nf[a] = fa++;
+      }
+    }
+    printf("\n");
+    if (ff + fa != graph.M) {
+      printf("FF FA M: %d %d %d\n", ff, fa, graph.M);
+    }
+    assert(ff + fa == graph.M);
+
+    printf("%d steps: %d sat this round (%d by other dir), %d unsat total\n", steps, ff, would_ff, fa);
+
     // construct new decimated graph
     struct graph ngraph;
-    ngraph.N = graph.N - fv;
+    ngraph.N = graph.N - 1;
     ngraph.M = graph.M - ff;
-    assert(ngraph.N == vi);
-    assert(ngraph.M == fa);
     ngraph.v = NULL;
     ngraph.f = NULL;
 
@@ -320,10 +370,9 @@ int main(int argc, char *argv[]) {
     // if the set var sat a clause, then that clause is already gone
     // if the set var doesn't sat a clause, then we still exclude it
     int *new_vi = calloc(ngraph.N, sizeof(int));
+    int ni = 0;
     for (int i = 0; i < graph.N; i++) {
-      if (v[i] == 0) { // variable still extant
-        int ni = nv[i];
-
+      if (i != fix) { // variable still extant
         // track original index
         new_vi[ni] = orig_vi[i];
 
@@ -348,14 +397,14 @@ int main(int argc, char *argv[]) {
             ngraph.f[na].v[fk - 1] = e;
           }
         }
+
+        ni++;
       }
     }
     free(orig_vi);
     orig_vi = new_vi;
 
     // clean up variable/clause-fixing scratch
-    free(v);
-    free(nv);
     free(f);
     free(nf);
 
@@ -364,18 +413,6 @@ int main(int argc, char *argv[]) {
     graph = ngraph;
 
     steps++;
-  }
-
-  if (graph.N == 0) {
-    printf("%d steps\n", steps);
-    printf("sat\n");
-
-    // output sat assignment
-    for (int i = 0; i < N; i++) {
-      assert(orig_v[i] != 0);
-      printf("%d ", (orig_v[i] + 1) / 2);
-    }
-    printf("\n");
   }
 
   // double-check sat of final assignment

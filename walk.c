@@ -56,7 +56,8 @@ int main(int argc, char *argv[]) {
   int steps = walk(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
 
   if (steps == max_steps) {
-    printf("unsat after %d steps\n", steps);
+    printf("%d steps\n", steps);
+    printf("unknown\n");
   }
 
   // double check sat of final assignment

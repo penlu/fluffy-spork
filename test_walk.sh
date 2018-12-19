@@ -44,4 +44,4 @@ for i in `seq 1 $n`; do
   fi;
 done
 
-grep "unsat after" out/* | wc -l
+grep "unknown" out/* | wc -l
