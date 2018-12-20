@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-n=1000
-N=300
-step=30
-MM=1800
-S=3000
+n=100
+N=$1
+step=$(($1 / 10))
+MM=$(($1 * 5))
+S=$(($1 * 100))
 p=30
 
 RESULT1=data/walksat_n${n}_N${N}_M${MM}_S${S}_p${p}.txt

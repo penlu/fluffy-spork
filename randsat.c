@@ -44,13 +44,24 @@ int main(int argc, char *argv[]) {
     srand(strtol(argv[4], NULL, 0));
   }
 
+  // track picked vars to avoid duplicates
+  int *picked = calloc(N, sizeof(int));
+
   // generate instance
   printf("%d\n", N);
   printf("%d\n", M);
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < k; j++) {
-      // random variable
-      int v = urand(N) + 1;
+      // random variable selection, no duplicates
+      int v;
+      while (1) {
+        int pick = urand(N) + 1;
+        if (!picked[pick]) {
+          picked[pick] = 1;
+          v = pick;
+          break;
+        }
+      }
 
       // randomly negated
       if (rand() % 2) {
@@ -59,8 +70,16 @@ int main(int argc, char *argv[]) {
         printf("-%d ", v);
       }
     }
+
+    // reset picks
+    for (int p = 0; p < N; p++) {
+      picked[p] = 0;
+    }
+
     printf("\n");
   }
+
+  free(picked);
 
   return 0;
 }

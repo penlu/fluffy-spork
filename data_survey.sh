@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 n=100
-N=1000
-step=200
-MM=5000
+N=$1
+step=$(($N / 10))
+MM=$(($N * 5))
 SS=1000
-SW=10000
+SW=$(($N * 100))
 p=30
 
 # take lots of data...
@@ -37,7 +37,7 @@ run_sed () {
 
 export -f run_sed
 
-for M in `cat <(seq 0 100 4300) <(seq 4400 200 5000)`; do
+for M in `cat <(seq 0 $step $MM)`; do
   echo $M
 
   ./test_survey.sh -n ${n} -N ${N} -M $M -S ${SS} -W ${SW} -p ${p} > /dev/null;
