@@ -55,6 +55,8 @@ int main(int argc, char *argv[]) {
 
   // XXX parallel update; is the random order important?
   int steps = 0;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  unsigned int start = ts.tv_sec;
   while (graph.N != 0) {
     assert(graph.N > 0);
     assert(graph.M >= 0);
@@ -179,10 +181,12 @@ int main(int argc, char *argv[]) {
 
       p_eta = eta;
     }
+    printf("survey: %d steps: converged in %d iters\n", steps, iters);
 
     // check for convergence
     if (iters == max_iters) {
       printf("survey: %d steps %d iters\n", steps, iters);
+      printf("survey: unconverged after %d steps\n", steps);
       printf("survey: unconverged\n");
 
       // clean up warnings
@@ -197,6 +201,7 @@ int main(int argc, char *argv[]) {
     // all surveys zero: start walking
     if (zeros == edges) {
       printf("survey: %d steps %d iters\n", steps, iters);
+      printf("survey: starting walk at %d steps\n", steps);
       printf("survey: surveys trivial\n");
 
       int *v;
@@ -211,6 +216,7 @@ int main(int argc, char *argv[]) {
       // process sat/unsat here
       if (walk_steps == -1) {
         printf("survey: %d steps %d walk\n", steps, walk_steps);
+        printf("survey: walk unsat\n");
         printf("survey: unsat\n");
       } else if (walk_steps < max_steps) {
         printf("survey: %d steps %d walk\n", steps, walk_steps);
@@ -410,6 +416,7 @@ int main(int argc, char *argv[]) {
     }
     if (unsat) {
       printf("survey: %d steps %d iters\n", steps, iters);
+      printf("survey: unsat after %d steps\n", steps);
       printf("survey: unsat\n");
 
       free(new_vi);
@@ -436,6 +443,13 @@ int main(int argc, char *argv[]) {
     graph = ngraph;
 
     steps++;
+
+    // check timeout
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    if (ts.tv_sec - start > 60) {
+      printf("survey: %d steps: timed out\n", steps);
+      break;
+    }
   }
 
   // double-check sat of final assignment

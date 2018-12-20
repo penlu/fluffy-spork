@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 usage() { echo "Usage: $0 [-n [how many tests]] [-N [how many vars]] [-M [how many clauses]] [-I [how many warning prop iters]]"; exit 0; }
 
 n=1000

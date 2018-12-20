@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 usage() { echo "Usage: $0 [-n [how many tests]] [-N [how many vars]] [-M [how many clauses]] [-S [how many walksat steps]] [-p [walksat noise level 0-100]]"; exit 0; }
 
 n=1000
@@ -51,6 +53,7 @@ run_test () {
 
 export -f run_test
 
-seq 1 $n | parallel -j8 run_test $N $M $S $p
+seq 1 $n | parallel -j16 run_test $N $M $S $p
 
-grep "unknown" out/* | wc -l
+grep "^walk: sat$" out/* | wc -l
+grep "^walk: unknown$" out/* | wc -l
