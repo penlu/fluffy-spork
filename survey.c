@@ -180,11 +180,17 @@ int main(int argc, char *argv[]) {
       free(p_eta);
 
       p_eta = eta;
+
+      // check timeout
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+      if (ts.tv_sec - start > 60) {
+        printf("survey: %d steps: timed out\n", steps);
+        break;
+      }
     }
-    printf("survey: %d steps: converged in %d iters\n", steps, iters);
 
     // check for convergence
-    if (iters == max_iters) {
+    if (!converged) {
       printf("survey: %d steps %d iters\n", steps, iters);
       printf("survey: unconverged after %d steps\n", steps);
       printf("survey: unconverged\n");
@@ -197,6 +203,8 @@ int main(int argc, char *argv[]) {
 
       break;
     }
+
+    printf("survey: %d steps: converged in %d iters\n", steps, iters);
 
     // all surveys zero: start walking
     if (zeros == edges) {
@@ -231,6 +239,7 @@ int main(int argc, char *argv[]) {
       } else {
         printf("survey: %d steps %d walk\n", steps, walk_steps);
         printf("survey: walk timed out\n");
+        printf("survey: unknown after %d steps\n", steps);
         printf("survey: unknown\n");
       }
 
@@ -443,13 +452,6 @@ int main(int argc, char *argv[]) {
     graph = ngraph;
 
     steps++;
-
-    // check timeout
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    if (ts.tv_sec - start > 60) {
-      printf("survey: %d steps: timed out\n", steps);
-      break;
-    }
   }
 
   // double-check sat of final assignment

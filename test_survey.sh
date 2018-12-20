@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-usage() { echo "Usage: $0 [-n [how many tests]] [-N [how many vars]] [-M [how many clauses]] [-SS [how many survey iters]] [-SW [how many walksat steps]] [-p [walksat noise level 0-100]]"; exit 0; }
+usage() { echo "Usage: $0 [-n [how many tests]] [-N [how many vars]] [-M [how many clauses]] [-S [how many survey iters]] [-W [how many walksat steps]] [-p [walksat noise level 0-100]]"; exit 0; }
 
 n=1000
 N=1000
@@ -9,7 +9,7 @@ SS=10000
 SW=10000
 p=30
 
-while getopts ":n:N:M:S:p:" o; do
+while getopts ":n:N:M:S:W:p:" o; do
   case "${o}" in
     n)
       n=${OPTARG}
@@ -23,11 +23,11 @@ while getopts ":n:N:M:S:p:" o; do
       M=${OPTARG}
     ;;
 
-    SS)
+    S)
       SS=${OPTARG}
     ;;
 
-    SW)
+    W)
       SW=${OPTARG}
     ;;
 
