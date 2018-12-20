@@ -275,7 +275,6 @@ int main(int argc, char *argv[]) {
       double pi_0 = p0;
 
       double denom = pi_p + pi_m + pi_0;
-      // TODO bug (maybe not here), fp exception
       if (pi_p == 0 && denom == 0) {
         Wp[i] = 0;
       } else {
@@ -286,7 +285,11 @@ int main(int argc, char *argv[]) {
       } else {
         Wm[i] = pi_m / denom;
       }
-      W0[i] = 1 - Wp[i] - Wm[i];
+      if (pi_0 == 0 && denom == 0) {
+        W0[i] = 0;
+      } else {
+        W0[i] = pi_0 / denom; // more numerically stable than 1 - Wp[i] - Wm[i]
+      }
 
       assert(0 <= Wp[i] && Wp[i] <= 1);
       assert(0 <= Wm[i] && Wm[i] <= 1);

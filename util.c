@@ -301,21 +301,11 @@ int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int *
           ties++;
         }
       }
-      if (min == M + 1) {
-        printf("VIOLATOR step %d: %d: ", steps, uc);
-        for (int i = 0; i < ff.k; i++) {
-          printf("%d ", ff.v[i].v->i);
-        }
-        printf("\n");
-        //fflush(stdout);
-      }
       assert(min != M + 1);
 
       // random pick with tiebreaker
       int orig = urand(ties + 1);
       int tiebreak = orig;
-      // (todo) bug here, sometimes flip is never set
-      // fixed: empty clauses are unacceptable
       for (int b = 0; b < ff.k; b++) {
         if (funsat[b] == min && tiebreak == 0) {
           flip = b;
