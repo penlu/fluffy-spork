@@ -4,7 +4,7 @@ n=100
 N=1000
 step=200
 MM=5000
-SS=10000
+SS=1000
 SW=10000
 p=30
 
@@ -37,7 +37,7 @@ run_sed () {
 
 export -f run_sed
 
-for M in `seq 0 ${step} ${MM}`; do
+for M in `cat <(seq 0 100 4300) <(seq 4400 200 5000)`; do
   echo $M
 
   ./test_survey.sh -n ${n} -N ${N} -M $M -S ${SS} -W ${SW} -p ${p} > /dev/null;

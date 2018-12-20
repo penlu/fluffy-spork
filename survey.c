@@ -182,11 +182,11 @@ int main(int argc, char *argv[]) {
       p_eta = eta;
 
       // check timeout
-      clock_gettime(CLOCK_MONOTONIC, &ts);
-      if (ts.tv_sec - start > 60) {
+      /*clock_gettime(CLOCK_MONOTONIC, &ts);
+      if (ts.tv_sec - start > 120) {
         printf("survey: %d steps: timed out\n", steps);
         break;
-      }
+      }*/
     }
 
     // check for convergence
