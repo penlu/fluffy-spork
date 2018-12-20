@@ -46,9 +46,15 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
 
   // maintain clause sat counts
   for (int a = 0; a < M; a++) {
-    for (int b = 0; b < graph->f[a].k; b++) {
-      int i = graph->f[a].v[b].v->i;
-      if (graph->f[a].v[b].j == 1 - v[i] * 2) {
+    if (graph->f[a].k == 0) {
+      printf("clause %d empty\n", a);
+      printf("unsat\n");
+
+      return -1;
+    }
+    for (int j = 0; j < graph->f[a].k; j++) {
+      int i = graph->f[a].v[j].v->i;
+      if (graph->f[a].v[j].j == 1 - v[i] * 2) {
         c[a]++;
       }
     }
@@ -94,29 +100,41 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
     if (urand(100) < p_param) {
       // flip a random var in the clause
       flip = urand(graph->f[uc].k);
-
-      assert(flip < graph->f[uc].k);
     } else {
       // flip a var that minimizes the number of clauses unsat
+      printf("asdfasdf\n");
 
       // count how many clauses each flip would leave unsat
       struct node_f ff = graph->f[uc];
       int *funsat = calloc(ff.k, sizeof(int));
+
       for (int b = 0; b < ff.k; b++) {
         struct node_v *vf = ff.v[b].v;
         int newv = !v[vf->i]; // what we'd flip this var to
-        for (int m = 0; m < vf->k; m++) {
-          int j = vf->f[m].j; // coefficient
-          int a = vf->f[m].f->a;
 
-          // increment funsat if this flip would kill the last sat var
-          if (c[a] == 1 && j == newv*2 - 1) {
+        // hypothetical sat counts for attached clauses
+        int *cf = calloc(M, sizeof(int));
+        for (int m = 0; m < vf->k; m++) {
+          int a = vf->f[m].f->a;
+          cf[a] = c[a];
+        }
+        // count up flip effects
+        for (int m = 0; m < vf->k; m++) {
+          struct node_f *vff = vf->f[m].f;
+          int a = vff->a;
+
+          cf[a] += vf->f[m].j*(1 - 2*newv);
+          assert(cf[a] >= 0);
+        }
+        // increment funsat if this flip would kill the last sat var in a clause
+        for (int m = 0; m < vf->k; m++) {
+          if (cf == 0) {
             funsat[b]++;
           }
-
-          // shouldn't be able to kill a sat var in someone with no sat vars
-          assert(c[a] != 0 || j != newv*2 - 1);
+          assert(funsat[b] <= M);
         }
+
+        free(cf);
       }
 
       // pick randomly amongst flips minimizing the number unsat
@@ -131,6 +149,7 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
           ties++;
         }
       }
+      printf("%d\n", min);
 
       // random pick with tiebreaker
       int orig = urand(ties + 1);
@@ -191,6 +210,12 @@ int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int *
 
   // maintain clause sat counts
   for (int a = 0; a < M; a++) {
+    if (graph->f[a].k == 0) {
+      printf("clause %d empty\n", a);
+      printf("unsat\n");
+
+      return -1;
+    }
     for (int b = 0; b < graph->f[a].k; b++) {
       int i = graph->f[a].v[b].v->i;
       if (graph->f[a].v[b].j == 1 - v[i] * 2) {
@@ -276,10 +301,21 @@ int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int *
           ties++;
         }
       }
+      if (min == M + 1) {
+        printf("VIOLATOR step %d: %d: ", steps, uc);
+        for (int i = 0; i < ff.k; i++) {
+          printf("%d ", ff.v[i].v->i);
+        }
+        printf("\n");
+        //fflush(stdout);
+      }
+      assert(min != M + 1);
 
       // random pick with tiebreaker
       int orig = urand(ties + 1);
       int tiebreak = orig;
+      // (todo) bug here, sometimes flip is never set
+      // fixed: empty clauses are unacceptable
       for (int b = 0; b < ff.k; b++) {
         if (funsat[b] == min && tiebreak == 0) {
           flip = b;
@@ -293,6 +329,7 @@ int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int *
 
       assert(flip < graph->f[uc].k);
     }
+    assert(flip < graph->f[uc].k);
 
     // flip the var and propagate new sat counts
     struct node_v *vf = graph->f[uc].v[flip].v;

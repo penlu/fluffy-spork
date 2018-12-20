@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
   graph_make(&graph, &inst);
 
   // debug dump
-  inst_show(&inst);
+  //inst_show(&inst);
 
   // track original indices to know the final sat assignment
   int *orig_vi = calloc(graph.N, sizeof(int));
@@ -205,9 +205,12 @@ int main(int argc, char *argv[]) {
 
     // all surveys zero: start walking
     if (zeros == edges) {
+      printf("%d steps %d iters\n", steps, iters);
+      printf("surveys trivial\n");
+
       int *v;
       int *c;
-      int walk_steps = walk(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
+      int walk_steps = walk2(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
 
       // save walk settings
       for (int i = 0; i < graph.N; i++) {
@@ -215,7 +218,10 @@ int main(int argc, char *argv[]) {
       }
 
       // process sat/unsat here
-      if (walk_steps < max_steps) {
+      if (walk_steps == -1) {
+        printf("%d steps %d walk\n", steps, walk_steps);
+        printf("unsat\n");
+      } else if (walk_steps < max_steps) {
         printf("%d steps %d walk\n", steps, walk_steps);
         printf("sat\n");
 
@@ -325,6 +331,15 @@ int main(int argc, char *argv[]) {
     int would_ff = 0; // would be sat if we picked the other direction
     for (int a = 0; a < graph.v[fix].k; a++) {
       int b = graph.v[fix].f[a].f->a;
+      if (graph.f[b].k == 1 && graph.v[fix].f[a].j * dir == 1) {
+        // fixing last variable in a clause the wrong way: conflict...
+        printf("%d steps %d iters\n", steps, iters);
+        printf("unsat\n");
+
+        free(f);
+
+        break;
+      }
       if (f[b] != 1 && graph.v[fix].f[a].j * dir == -1) {
         ff++;
         f[b] = 1;
@@ -428,6 +443,13 @@ int main(int argc, char *argv[]) {
     // clean up variable/clause-fixing scratch
     free(f);
     free(nf);
+
+    /*
+    // empty clauses should have been unsat
+    for (int a = 0; a < ngraph.M; a++) {
+      assert(ngraph.f[a].k != 0);
+    }
+    */
 
     // store new graph
     graph_free(&graph);

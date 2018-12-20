@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
   int *v; // received var assigns
   int *c; // received clause unsat counts
-  int steps = walk(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
+  int steps = walk2(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
 
   if (steps == max_steps) {
     printf("%d steps\n", steps);
