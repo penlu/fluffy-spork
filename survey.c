@@ -154,19 +154,10 @@ int main(int argc, char *argv[]) {
 
           if (absd(eta[i][a] - p_eta[i][a]) > TOLERANCE) {
             converged = 0;
-            /*
-            printf("%d steps %d iters: %d->%d eta not yet converged (%.*e vs %.*e)\n",
-              steps, iters, a, i, DBL_DIG, eta[i][a], DBL_DIG, p_eta[i][a]);
-            */
           }
           if (absd(eta[i][a]) < TOLERANCE) {
             zeros++;
           }
-
-          /*
-          printf("%d steps %d iters: %d->%d eta is %.*e\n",
-            steps, iters, a, i, DBL_DIG, eta[i][a]);
-          */
         }
       }
 
@@ -191,8 +182,8 @@ int main(int argc, char *argv[]) {
 
     // check for convergence
     if (iters == max_iters) {
-      printf("%d steps %d iters\n", steps, iters);
-      printf("unconverged\n");
+      printf("survey: %d steps %d iters\n", steps, iters);
+      printf("survey: unconverged\n");
 
       // clean up warnings
       for (int i = 0; i < graph.N; i++) {
@@ -205,12 +196,12 @@ int main(int argc, char *argv[]) {
 
     // all surveys zero: start walking
     if (zeros == edges) {
-      printf("%d steps %d iters\n", steps, iters);
-      printf("surveys trivial\n");
+      printf("survey: %d steps %d iters\n", steps, iters);
+      printf("survey: surveys trivial\n");
 
       int *v;
       int *c;
-      int walk_steps = walk2(max_steps, p_param, PRINT_FREQ, &graph, &v, &c);
+      int walk_steps = walk(max_steps, p_param, PRINT_FREQ*10, &graph, &v, &c);
 
       // save walk settings
       for (int i = 0; i < graph.N; i++) {
@@ -219,11 +210,11 @@ int main(int argc, char *argv[]) {
 
       // process sat/unsat here
       if (walk_steps == -1) {
-        printf("%d steps %d walk\n", steps, walk_steps);
-        printf("unsat\n");
+        printf("survey: %d steps %d walk\n", steps, walk_steps);
+        printf("survey: unsat\n");
       } else if (walk_steps < max_steps) {
-        printf("%d steps %d walk\n", steps, walk_steps);
-        printf("sat\n");
+        printf("survey: %d steps %d walk\n", steps, walk_steps);
+        printf("survey: sat\n");
 
         // output sat assignment
         for (int i = 0; i < N; i++) {
@@ -232,8 +223,9 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
       } else {
-        printf("%d steps %d walk\n", steps, walk_steps);
-        printf("unknown\n");
+        printf("survey: %d steps %d walk\n", steps, walk_steps);
+        printf("survey: walk timed out\n");
+        printf("survey: unknown\n");
       }
 
       // clean up warnings
@@ -317,7 +309,6 @@ int main(int argc, char *argv[]) {
         fix = i;
       }
     }
-    printf("%d steps: fixed %d to %d (%.*e)\n", steps, fix, dir, DBL_DIG, max);
 
     // save fixed variable
     assert(orig_v[orig_vi[fix]] == 0);
@@ -334,52 +325,24 @@ int main(int argc, char *argv[]) {
     int would_ff = 0; // would be sat if we picked the other direction
     for (int a = 0; a < graph.v[fix].k; a++) {
       int b = graph.v[fix].f[a].f->a;
-      if (graph.f[b].k == 1 && graph.v[fix].f[a].j * dir == 1) {
-        // fixing last variable in a clause the wrong way: conflict...
-        printf("%d steps %d iters\n", steps, iters);
-        printf("unsat\n");
-
-        free(f);
-
-        break;
-      }
       if (f[b] != 1 && graph.v[fix].f[a].j * dir == -1) {
         ff++;
         f[b] = 1;
-        printf("%d set\n", b);
       }
       if (f[b] * dir == 1) {
         would_ff++;
       }
     }
 
-    // we set our last variable and yet still have clauses around?
-    if (graph.N == 1 && ff != graph.M) {
-      printf("%d steps %d iters\n", steps, iters);
-      printf("unsat\n");
-
-      free(f);
-
-      break;
-    }
-
     // find unfixed factors
     int *nf = calloc(graph.M, sizeof(int)); // new clause index
     int fa = 0;
-    printf("FA: ");
     for (int a = 0; a < graph.M; a++) {
-      printf("%d ", f[a]);
       if (f[a] == 0) {
         nf[a] = fa++;
       }
     }
-    printf("\n");
-    if (ff + fa != graph.M) {
-      printf("FF FA M: %d %d %d\n", ff, fa, graph.M);
-    }
     assert(ff + fa == graph.M);
-
-    printf("%d steps: %d sat this round (%d by other dir), %d unsat total\n", steps, ff, would_ff, fa);
 
     // construct new decimated graph
     struct graph ngraph;
@@ -387,10 +350,6 @@ int main(int argc, char *argv[]) {
     ngraph.M = graph.M - ff;
     ngraph.v = NULL;
     ngraph.f = NULL;
-
-    if (steps % PRINT_FREQ == 0) {
-      printf("%d vars unset\n", ngraph.N);
-    }
 
     // create storage for unfixed variables
     ngraph.v = calloc(ngraph.N, sizeof(struct node_v));
@@ -440,19 +399,37 @@ int main(int argc, char *argv[]) {
         ni++;
       }
     }
+
+    // detect empty clauses: conflict
+    int unsat = 0;
+    for (int a = 0; a < ngraph.M; a++) {
+      if (ngraph.f[a].k == 0) {
+        unsat = 1;
+        break;
+      }
+    }
+    if (unsat) {
+      printf("survey: %d steps %d iters\n", steps, iters);
+      printf("survey: unsat\n");
+
+      free(new_vi);
+      free(f);
+      free(nf);
+      graph_free(&ngraph);
+
+      break;
+    }
+
+    if (PRINT_FREQ && steps % PRINT_FREQ == 0) {
+      printf("survey: status %d steps: %d vars, %d unsat\n", steps, ngraph.N, ngraph.M);
+    }
+
     free(orig_vi);
     orig_vi = new_vi;
 
     // clean up variable/clause-fixing scratch
     free(f);
     free(nf);
-
-    /*
-    // empty clauses should have been unsat
-    for (int a = 0; a < ngraph.M; a++) {
-      assert(ngraph.f[a].k != 0);
-    }
-    */
 
     // store new graph
     graph_free(&graph);

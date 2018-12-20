@@ -47,8 +47,8 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
   // maintain clause sat counts
   for (int a = 0; a < M; a++) {
     if (graph->f[a].k == 0) {
-      printf("clause %d empty\n", a);
-      printf("unsat\n");
+      printf("walk: clause %d empty\n", a);
+      printf("walk: unsat\n");
 
       return -1;
     }
@@ -77,8 +77,8 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
 
     // check sat
     if (u == 0) {
-      printf("%d steps\n", steps);
-      printf("sat\n");
+      printf("walk: %d steps\n", steps);
+      printf("walk: sat\n");
       for (int i = 0; i < N; i++) {
         printf("%d ", v[i]);
       }
@@ -88,7 +88,7 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
 
     // status printout
     if (print_freq && steps % print_freq == 0) {
-      printf("%d steps: %d unsat\n", steps, u);
+      printf("walk: status %d steps: %d unsat\n", steps, u);
     }
 
     // select random unsat clause
@@ -102,7 +102,6 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
       flip = urand(graph->f[uc].k);
     } else {
       // flip a var that minimizes the number of clauses unsat
-      printf("asdfasdf\n");
 
       // count how many clauses each flip would leave unsat
       struct node_f ff = graph->f[uc];
@@ -128,7 +127,7 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
         }
         // increment funsat if this flip would kill the last sat var in a clause
         for (int m = 0; m < vf->k; m++) {
-          if (cf == 0) {
+          if (cf[vf->f[m].f->a] == 0) {
             funsat[b]++;
           }
           assert(funsat[b] <= M);
@@ -149,7 +148,6 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
           ties++;
         }
       }
-      printf("%d\n", min);
 
       // random pick with tiebreaker
       int orig = urand(ties + 1);
@@ -211,8 +209,8 @@ int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int *
   // maintain clause sat counts
   for (int a = 0; a < M; a++) {
     if (graph->f[a].k == 0) {
-      printf("clause %d empty\n", a);
-      printf("unsat\n");
+      printf("walk: clause %d empty\n", a);
+      printf("walk: unsat\n");
 
       return -1;
     }
@@ -241,8 +239,8 @@ int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int *
 
     // check sat
     if (u == 0) {
-      printf("%d steps\n", steps);
-      printf("sat\n");
+      printf("walk: %d steps\n", steps);
+      printf("walk: sat\n");
       for (int i = 0; i < N; i++) {
         printf("%d ", v[i]);
       }
@@ -252,7 +250,7 @@ int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int *
 
     // status printout
     if (print_freq && steps % print_freq == 0) {
-      printf("%d steps: %d unsat\n", steps, u);
+      printf("walk: %d steps: %d unsat\n", steps, u);
     }
 
     // select random unsat clause
