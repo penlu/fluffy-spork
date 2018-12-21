@@ -6,3 +6,4 @@ walk
 warn
 survey
 out/
+data/*/out_*/
