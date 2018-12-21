@@ -37,74 +37,120 @@ for M in range(M_min, M_max + N/10, N/10):
 
 series_count -= 1
 
+RAINBOW=False
+
 # lines per M, all together
 set_settings()
+if RAINBOW:
+  color_counter = 0
+  for M in range(M_min, M_max + N/10, N/10):
+    if series_count != 0:
+      color_ratio = float(color_counter) / series_count
+    else:
+      color_ratio = 0
+    cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+
+    try:
+      step_sigma = np.load('plot/survey_pre/survey_{}_step_sigma.npy'.format(M))
+      color_counter += 1
+    except Exception, e:
+      continue
+
+    points_x = []
+    points_y = []
+    # destack using numpy?
+    for i in range(len(step_sigma)):
+      for j in range(len(step_sigma[i])):
+        points_x += [float(i) / N]
+        points_y += [step_sigma[i][j]]
+
+    # plot with some color
+    # plt.plot arguments: x-values, y-values, color, width
+    plt.scatter(np.array(points_x), np.array(points_y), c=cur_color_sample, marker='.', s=0.01)
+
 color_counter = 0
 for M in range(M_min, M_max + N/10, N/10):
   if series_count != 0:
     color_ratio = float(color_counter) / series_count
   else:
     color_ratio = 0
-  cur_color_avg = (0., math.cos(color_ratio * math.pi/2)/3, math.sin(color_ratio * math.pi/2)/3)
-  cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
-  #cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+
+  if RAINBOW:
+    cur_color_avg = (0., math.cos(color_ratio * math.pi/2)/3, math.sin(color_ratio * math.pi/2)/3)
+  else:
+    cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
 
   try:
-    step_sigma = np.load('plot/survey_pre/survey_{}_step_sigma.npy'.format(M))
     avg_sigma = np.load('plot/survey_pre/survey_{}_avg_sigma.npy'.format(M))
     color_counter += 1
   except Exception, e:
     continue
 
-  points_x = []
-  points_y = []
-  # destack using numpy?
-  for i in range(len(step_sigma)):
-    for j in range(len(step_sigma[i])):
-      points_x += [float(i) / N]
-      points_y += [step_sigma[i][j]]
-
   # plot with some color
   # plt.plot arguments: x-values, y-values, color, width
   size = len(avg_sigma)
   plt.scatter(np.linspace(0, float(size - 1) / N, size), avg_sigma, c=cur_color_avg, marker='.', s=0.1)
-  plt.scatter(np.array(points_x), np.array(points_y), c=cur_color_sample, marker='.', s=0.01)
 
-plt.savefig('plot/survey_avg_sigma.png')
+if RAINBOW:
+  plt.savefig('plot/survey_avg_sigma_rainbow.png')
+else:
+  plt.savefig('plot/survey_avg_sigma.png')
 plt.show()
 
 set_settings()
+if RAINBOW:
+  color_counter = 0
+  for M in range(M_min, M_max*5 + N/10, N/10):
+    if series_count != 0:
+      color_ratio = float(color_counter) / series_count
+    else:
+      color_ratio = 0
+    cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+
+    try:
+      step_polar= np.load('plot/survey_pre/survey_{}_step_polar.npy'.format(M))
+      color_counter += 1
+    except Exception, e:
+      continue
+
+    points_x = []
+    points_y = []
+    # destack using numpy?
+    for i in range(len(step_polar)):
+      for j in range(len(step_polar[i])):
+        points_x += [float(i) / N]
+        points_y += [step_polar[i][j]]
+
+    # plot with some color
+    # plt.plot arguments: x-values, y-values, color, width
+    plt.scatter(np.array(points_x), np.array(points_y), c=cur_color_sample, marker='.', s=0.01)
+
 color_counter = 0
 for M in range(M_min, M_max*5 + N/10, N/10):
   if series_count != 0:
     color_ratio = float(color_counter) / series_count
   else:
     color_ratio = 0
-  cur_color_avg = (0., math.cos(color_ratio * math.pi/2)/3, math.sin(color_ratio * math.pi/2)/3)
-  cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
-  #cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+
+  if RAINBOW:
+    cur_color_avg = (0., math.cos(color_ratio * math.pi/2)/3, math.sin(color_ratio * math.pi/2)/3)
+  else:
+    cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
 
   try:
-    step_polar= np.load('plot/survey_pre/survey_{}_step_polar.npy'.format(M))
     avg_polar = np.load('plot/survey_pre/survey_{}_avg_polar.npy'.format(M))
     color_counter += 1
   except Exception, e:
     continue
 
-  points_x = []
-  points_y = []
-  # destack using numpy?
-  for i in range(len(step_polar)):
-    for j in range(len(step_polar[i])):
-      points_x += [float(i) / N]
-      points_y += [step_polar[i][j]]
-
   # plot with some color
   # plt.plot arguments: x-values, y-values, color, width
   size = len(avg_polar)
   plt.scatter(np.linspace(0, float(size - 1) / N, size), avg_polar, c=cur_color_avg, marker='.', s=0.1)
-  plt.scatter(np.array(points_x), np.array(points_y), c=cur_color_sample, marker='.', s=0.01)
 
-plt.savefig('plot/survey_avg_polar.png')
+if RAINBOW:
+  plt.savefig('plot/survey_avg_polar_rainbow.png')
+else:
+  plt.savefig('plot/survey_avg_polar.png')
 plt.show()
 
