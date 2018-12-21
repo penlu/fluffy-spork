@@ -59,6 +59,6 @@ run_test () {
 
 export -f run_test
 
-seq 1 $n | parallel -j8 run_test $N $M $SS $SW $p
+seq 1 $n | parallel -j6 run_test $N $M $SS $SW $p
 
 grep "unknown" out/* | wc -l

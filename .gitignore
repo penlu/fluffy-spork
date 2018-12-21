@@ -7,3 +7,4 @@ warn
 survey
 out/
 data/*/out_*/
+*.npy

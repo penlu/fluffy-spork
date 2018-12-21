@@ -16,7 +16,7 @@
 #include "util.h"
 
 #define PRINT_FREQ 100
-#define TOLERANCE 0.0001
+#define TOLERANCE 0.001
 
 int main(int argc, char *argv[]) {
   if (argc != 4) {
@@ -56,16 +56,16 @@ int main(int argc, char *argv[]) {
 
   // create original survey storage
   // eta[i][a] is survey a->i
-  double **p_eta = calloc(graph.N, sizeof(double*));
+  float **p_eta = calloc(graph.N, sizeof(float*));
   for (int i = 0; i < graph.N; i++) {
-    p_eta[i] = calloc(graph.v[i].k, sizeof(double));
+    p_eta[i] = calloc(graph.v[i].k, sizeof(float));
   }
 
   // randomly initialize warnings
   int edges = 0;
   for (int i = 0; i < graph.N; i++) {
     for (int a = 0; a < graph.v[i].k; a++) {
-      p_eta[i][a] = (double) urand(1 << 30) / ((1 << 30) - 1);
+      p_eta[i][a] = (float) urand(1 << 30) / ((1 << 30) - 1);
       assert(0 <= p_eta[i][a] && p_eta[i][a] <= 1);
       edges++;
     }
@@ -83,13 +83,13 @@ int main(int argc, char *argv[]) {
 
     // create weight storage (pi values, effectively cavity fields)
     // pi*[a][i] is weight i->a
-    double **pi_u = calloc(graph.M, sizeof(double*));
-    double **pi_s = calloc(graph.M, sizeof(double*));
-    double **pi_0 = calloc(graph.M, sizeof(double*));
+    float **pi_u = calloc(graph.M, sizeof(float*));
+    float **pi_s = calloc(graph.M, sizeof(float*));
+    float **pi_0 = calloc(graph.M, sizeof(float*));
     for (int a = 0; a < graph.M; a++) {
-      pi_u[a] = calloc(graph.f[a].k, sizeof(double));
-      pi_s[a] = calloc(graph.f[a].k, sizeof(double));
-      pi_0[a] = calloc(graph.f[a].k, sizeof(double));
+      pi_u[a] = calloc(graph.f[a].k, sizeof(float));
+      pi_s[a] = calloc(graph.f[a].k, sizeof(float));
+      pi_0[a] = calloc(graph.f[a].k, sizeof(float));
     }
 
     // update surveys for max_iters timesteps
@@ -106,9 +106,9 @@ int main(int argc, char *argv[]) {
           struct node_v *vi = graph.f[a].v[i].v;
 
           // calculate products separately
-          double pu = 1;
-          double ps = 1;
-          double p0 = 1;
+          float pu = 1;
+          float ps = 1;
+          float p0 = 1;
           for (int b = 0; b < vi->k; b++) {
             if (a != vi->f[b].f->a) { // u_{b -> i} for a != b
               if (vi->f[b].j != graph.f[a].v[i].j) {
@@ -135,9 +135,9 @@ int main(int argc, char *argv[]) {
 
       // create new survey storage
       // eta[i][a] is survey a->i
-      double **eta = calloc(graph.N, sizeof(double*));
+      float **eta = calloc(graph.N, sizeof(float*));
       for (int i = 0; i < graph.N; i++) {
-        eta[i] = calloc(graph.v[i].k, sizeof(double));
+        eta[i] = calloc(graph.v[i].k, sizeof(float));
       }
 
       // compute new surveys eta
@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
           eta[i][a] = 1;
           for (int j = 0; j < fa->k; j++) {
             if (i != fa->v[j].v->i) {
-              double denom = pi_u[fa->a][j] + pi_s[fa->a][j] + pi_0[fa->a][j];
+              float denom = pi_u[fa->a][j] + pi_s[fa->a][j] + pi_0[fa->a][j];
               if (pi_u[fa->a][j] == 0 && denom == 0) {
                 eta[i][a] = 0;
               } else {
@@ -192,11 +192,11 @@ int main(int argc, char *argv[]) {
     printf("survey: %d steps: converged in %d iters\n", steps, iters);
 
     // calculate clause complexities
-    double sigma = 0;
-    double *sigma_a = calloc(graph.M, sizeof(double));
+    float sigma = 0;
+    float *sigma_a = calloc(graph.M, sizeof(float));
     for (int a = 0; a < graph.M; a++) {
-      double prod_u = 1;
-      double prod_denom = 1;
+      float prod_u = 1;
+      float prod_denom = 1;
       for (int i = 0; i < graph.f[a].k; i++) {
         prod_u *= pi_u[a][i];
         prod_denom *= (pi_u[a][i] + pi_s[a][i] + pi_0[a][i]);
@@ -217,14 +217,14 @@ int main(int argc, char *argv[]) {
     free(pi_0);
 
     // compute biases
-    double *Wp = calloc(graph.N, sizeof(double));
-    double *Wm = calloc(graph.N, sizeof(double));
-    double *W0 = calloc(graph.N, sizeof(double));
-    double *sigma_i = calloc(graph.N, sizeof(double));
+    float *Wp = calloc(graph.N, sizeof(float));
+    float *Wm = calloc(graph.N, sizeof(float));
+    float *W0 = calloc(graph.N, sizeof(float));
+    float *sigma_i = calloc(graph.N, sizeof(float));
     for (int i = 0; i < graph.N; i++) {
-      double pp = 1;
-      double pm = 1;
-      double p0 = 1;
+      float pp = 1;
+      float pm = 1;
+      float p0 = 1;
 
       for (int a = 0; a < graph.v[i].k; a++) {
         if (graph.v[i].f[a].j == -1) {
@@ -236,11 +236,11 @@ int main(int argc, char *argv[]) {
         p0 *= 1 - p_eta[i][a];
       }
 
-      double pi_p = pm - p0;
-      double pi_m = pp - p0;
-      double pi_0 = p0;
+      float pi_p = pm - p0;
+      float pi_m = pp - p0;
+      float pi_0 = p0;
 
-      double denom = pi_p + pi_m + pi_0;
+      float denom = pi_p + pi_m + pi_0;
       assert(denom != 0);
       if (pi_p == 0) {
         Wp[i] = 0;
@@ -268,7 +268,7 @@ int main(int argc, char *argv[]) {
       assert(0 <= W0[i] && W0[i] <= 1);
     }
 
-    printf("survey: %d steps sigma/N %.*e\n", steps, DBL_DIG, sigma / graph.N);
+    printf("survey: %d steps sigma/N %.*e\n", steps, FLT_DIG, sigma / graph.N);
 
     // all surveys zero: start walking
     if (zeros == edges) {
@@ -327,14 +327,14 @@ int main(int argc, char *argv[]) {
 
     // compute fixed variables
     // 0: don't fix, +1: fix 1, -1: fix 0
-    double max = 0;
+    float max = 0;
     int dir = 0;
     int fix = 0;
-    double max_sigma = -INFINITY;
+    float max_sigma = -INFINITY;
     for (int i = 0; i < graph.N; i++) {
       // use certitudes
       /*
-      double d = Wp[i] < Wm[i] ? 1 - Wp[i] : 1 - Wm[i];
+      float d = Wp[i] < Wm[i] ? 1 - Wp[i] : 1 - Wm[i];
       if (d > max) {
         max = d;
         dir = Wp[i] > Wm[i] ? 1 : -1;
@@ -343,7 +343,7 @@ int main(int argc, char *argv[]) {
       */
 
       // use polarization
-      double d = Wp[i] - Wm[i];
+      float d = Wp[i] - Wm[i];
       if (absd(d) > max) {
         max = absd(d);
         dir = d > 0 ? 1 : -1;
@@ -356,11 +356,11 @@ int main(int argc, char *argv[]) {
     }
     printf("survey: selected %d (est delta %.*e, pol %.*e, 1-Wm %.*e), var sigma %.*e (max %.*e)\n",
       fix,
-      DBL_DIG, log(Wp[fix] < Wm[fix] ? 1 - Wp[fix] : 1 - Wm[fix]),
-      DBL_DIG, absd(Wp[fix] - Wm[fix]),
-      DBL_DIG, 1 - Wm[fix],
-      DBL_DIG, sigma_i[fix],
-      DBL_DIG, max_sigma);
+      FLT_DIG, log(Wp[fix] < Wm[fix] ? 1 - Wp[fix] : 1 - Wm[fix]),
+      FLT_DIG, absd(Wp[fix] - Wm[fix]),
+      FLT_DIG, 1 - Wm[fix],
+      FLT_DIG, sigma_i[fix],
+      FLT_DIG, max_sigma);
 
     // save fixed variable
     assert(orig_v[orig_vi[fix]] == 0);
@@ -423,7 +423,7 @@ int main(int argc, char *argv[]) {
 
     // also will need to decimate surveys
     // eta[i][a] is survey a->i
-    double **eta = calloc(ngraph.N, sizeof(double*));
+    float **eta = calloc(ngraph.N, sizeof(float*));
 
     // create new edges
     // implicitly skip edges for set vars:
@@ -460,7 +460,7 @@ int main(int argc, char *argv[]) {
             ngraph.f[na].v[fk - 1] = e;
 
             // copy old eta
-            eta[ni] = realloc(eta[ni], vk * sizeof(double));
+            eta[ni] = realloc(eta[ni], vk * sizeof(float));
             eta[ni][vk - 1] = p_eta[i][a];
             edges++;
           }

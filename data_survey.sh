@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-n=100
+n=$2
 N=$1
 step=$(($N / 10))
 MM=$(($N * 5))
@@ -15,8 +15,6 @@ mkdir -p $DATADIR
 RESULT=$DATADIR/outcomes.txt
 
 echo "M sat unsat walkunsat unconverged unknown" > $RESULT
-
-export -f run_sed
 
 for M in `seq 0 $step $MM`; do
   echo $M
