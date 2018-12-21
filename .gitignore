@@ -5,6 +5,7 @@ randsat
 walk
 warn
 survey
+survey_omp
 out/
 data/*/out_*/
 *.npy

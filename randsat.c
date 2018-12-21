@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
 
   // track picked vars to avoid duplicates
   int *picked = calloc(N, sizeof(int));
+  int *picks = calloc(k, sizeof(int));
 
   // generate instance
   printf("%d\n", N);
@@ -62,6 +63,7 @@ int main(int argc, char *argv[]) {
           break;
         }
       }
+      picks[j] = v;
 
       // randomly negated
       if (rand() % 2) {
@@ -72,14 +74,15 @@ int main(int argc, char *argv[]) {
     }
 
     // reset picks
-    for (int p = 0; p < N; p++) {
-      picked[p] = 0;
+    for (int p = 0; p < k; p++) {
+      picked[picks[p] - 1] = 0;
     }
 
     printf("\n");
   }
 
   free(picked);
+  free(picks);
 
   return 0;
 }

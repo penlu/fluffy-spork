@@ -3,7 +3,7 @@ FLAGS=--std=gnu11 -O3 -g
 
 LD_FLAGS=-lm
 
-all: randsat walk warn survey
+all: randsat walk warn survey survey_omp
 
 clean:
 	rm -f randsat walk warn survey inst.o graph.o util.o
@@ -28,5 +28,8 @@ warn: warn.c inst.o inst.h graph.o graph.h util.o util.h
 
 survey: survey.c inst.o inst.h graph.o graph.h util.o util.h
 	gcc $(FLAGS) -o survey survey.c inst.o graph.o util.o $(LD_FLAGS)
+
+survey_omp: survey_omp.c inst.o inst.h graph.o graph.h util.o util.h
+	gcc $(FLAGS) -o survey_omp survey_omp.c inst.o graph.o util.o $(LD_FLAGS) -fopenmp
 
 .PHONY: all clean
