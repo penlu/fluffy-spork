@@ -499,9 +499,7 @@ int main(int argc, char *argv[]) {
       break;
     }
 
-    if (PRINT_FREQ && steps % PRINT_FREQ == 0) {
-      printf("survey: status %d steps: %d vars, %d unsat\n", steps, ngraph.N, ngraph.M);
-    }
+    printf("survey: status %d steps: %d vars, %d unsat\n", steps, ngraph.N, ngraph.M);
 
     free(orig_vi);
     orig_vi = new_vi;

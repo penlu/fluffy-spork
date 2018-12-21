@@ -1,5 +1,5 @@
 #FLAGS=--std=gnu11 -O0 -g
-FLAGS=--std=gnu11 -O3 -g -pg
+FLAGS=--std=gnu11 -O3 -g
 
 LD_FLAGS=-lm
 

@@ -87,9 +87,7 @@ int walk(int max_steps, int p_param, int print_freq, struct graph *graph, int **
     }
 
     // status printout
-    if (print_freq && steps % print_freq == 0) {
-      printf("walk: status %d steps: %d unsat\n", steps, u);
-    }
+    printf("walk: status %d steps: %d unsat\n", steps, u);
 
     // select random unsat clause
     int uc = unsat[urand(u)];

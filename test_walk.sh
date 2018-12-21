@@ -53,7 +53,7 @@ run_test () {
 
 export -f run_test
 
-seq 1 $n | parallel -j16 run_test $N $M $S $p
+seq 1 $n | parallel -j8 run_test $N $M $S $p
 
 grep "^walk: sat$" out/* | wc -l
 grep "^walk: unknown$" out/* | wc -l
