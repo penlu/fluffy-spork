@@ -6,27 +6,16 @@ import re
 import subprocess
 import sys
 
-N_values = [100, 300, 1000, 3000]
-
-def folder_from_N(N):
-  if N != 3000:
-    return 'data/survey_n100_N{}_M{}_SS1000_SW{}_p30'.format(N, N*5, N*100)
-  else:
-    return 'data/survey_n50_N{}_M{}_SS1000_SW{}_p30'.format(N, N*5, N*100)
-
 # step-finder regex
 p_sigma = re.compile('survey: [0-9]* steps sigma/N ([+-.0-9e]*)')
 p_polar = re.compile('survey: selected .*, pol ([+-.0-9e]*),.*')
 devnull = open('/dev/null', 'w')
 
 # only plot for 1k for now
-N = N_values[3]
-d = folder_from_N(N)
+N = 3000
+d = 'data/survey_phase_n50_N3000_SS1000_SW300000_p30'
 
-# TODO sorting
-M_min = 0
-M_max = N*5
-for M in range(M_min, M_max + N/10, N/10):
+for M in range(12240, 12900, 60):
   # two lists of lists: first layer is by run, second is by step
   out_sigma = []  # instance complexity at each step
   out_polar = []  # polarization of last fixed var at each step
@@ -37,7 +26,7 @@ for M in range(M_min, M_max + N/10, N/10):
 
     this_sigma = []
     this_polar = []
-    if subprocess.call(['grep', 'survey: sat', fn], stdout=devnull, stderr=devnull) == 0:
+    if True or subprocess.call(['grep', 'survey: sat', fn], stdout=devnull, stderr=devnull) == 0:
       for l in open(fn):
         sig = p_sigma.findall(l)
         if sig:
@@ -82,8 +71,8 @@ for M in range(M_min, M_max + N/10, N/10):
     avg_sigma = np.array(avg_sigma)
     avg_polar = np.array(avg_polar)
 
-    np.save('plot/survey_pre/survey_{}_step_sigma'.format(M), step_sigma)
-    np.save('plot/survey_pre/survey_{}_step_polar'.format(M), step_polar)
-    np.save('plot/survey_pre/survey_{}_avg_sigma'.format(M), avg_sigma)
-    np.save('plot/survey_pre/survey_{}_avg_polar'.format(M), avg_polar)
+    np.save('plot/phase_pre/phase_{}_step_sigma'.format(M), step_sigma)
+    np.save('plot/phase_pre/phase_{}_step_polar'.format(M), step_polar)
+    np.save('plot/phase_pre/phase_{}_avg_sigma'.format(M), avg_sigma)
+    np.save('plot/phase_pre/phase_{}_avg_polar'.format(M), avg_polar)
 

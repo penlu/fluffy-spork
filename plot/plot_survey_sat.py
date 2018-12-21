@@ -43,8 +43,8 @@ for i in range(len(N_values)):
     out_reader = csv.DictReader(out_f, delimiter=' ')
     for row in out_reader:
       out_a += [float(row['M']) / N]
-      out_sat += [float(row['sat']) / 100]
-      out_unk += [float(row['unknown']) / 100]
+      out_sat += [float(row['sat']) / (100 if i != 3 else 50)]
+      out_unk += [float(row['unknown']) / (100 if i != 3 else 50)]
 
   out_a = np.array(out_a)
   out_sat = np.array(out_sat)
@@ -54,7 +54,7 @@ for i in range(len(N_values)):
   # plot with some color
   # plt.plot arguments: x-values, y-values, color, width
   plt.plot(out_a, out_sat, color=cur_color_sat, linewidth=1)
-  plt.plot(out_a, out_unk, color=cur_color_unk, linewidth=1)
+  #plt.plot(out_a, out_unk, color=cur_color_unk, linewidth=1)
 
 plt.savefig('plot/survey_sat_unk.png')
 plt.show()

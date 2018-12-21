@@ -20,30 +20,25 @@ def set_settings(ylabel, xlabel):
   plt.ylabel(ylabel)
   plt.xlabel(xlabel)
 
-N_values = [100, 300, 1000, 3000]
-
-N = N_values[3]
-
-M_min = 0
-M_max = N*5
+N = 3000
 
 series_count = 0
-for M in range(M_min, M_max + N/10, N/10):
+for M in range(12240, 12900, 60):
   try:
-    avg_sigma = np.load('plot/survey_pre/survey_{}_avg_sigma.npy'.format(M))
+    avg_sigma = np.load('plot/phase_pre/phase_{}_avg_sigma.npy'.format(M))
     series_count += 1
   except Exception, e:
     continue
 
 series_count -= 1
 
-RAINBOW=True
+RAINBOW=False
 
 # lines per M, all together
 set_settings('sigma (nats)', 'fixed variables')
 if RAINBOW:
   color_counter = 0
-  for M in range(M_min, M_max + N/10, N/10):
+  for M in range(12240, 12900, 60):
     if series_count != 0:
       color_ratio = float(color_counter) / series_count
     else:
@@ -51,7 +46,7 @@ if RAINBOW:
     cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
 
     try:
-      step_sigma = np.load('plot/survey_pre/survey_{}_step_sigma.npy'.format(M))
+      step_sigma = np.load('plot/phase_pre/phase_{}_step_sigma.npy'.format(M))
       color_counter += 1
     except Exception, e:
       continue
@@ -69,7 +64,7 @@ if RAINBOW:
     plt.scatter(np.array(points_x), np.array(points_y), c=cur_color_sample, marker='.', s=0.01)
 
 color_counter = 0
-for M in range(M_min, M_max + N/10, N/10):
+for M in range(12240, 12900, 60):
   if series_count != 0:
     color_ratio = float(color_counter) / series_count
   else:
@@ -81,7 +76,7 @@ for M in range(M_min, M_max + N/10, N/10):
     cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
 
   try:
-    avg_sigma = np.load('plot/survey_pre/survey_{}_avg_sigma.npy'.format(M))
+    avg_sigma = np.load('plot/phase_pre/phase_{}_avg_sigma.npy'.format(M))
     color_counter += 1
   except Exception, e:
     continue
@@ -92,15 +87,16 @@ for M in range(M_min, M_max + N/10, N/10):
   plt.scatter(np.linspace(0, float(size - 1) / N, size), avg_sigma, c=cur_color_avg, marker='.', s=0.1)
 
 if RAINBOW:
-  plt.savefig('plot/survey_avg_sigma_rainbow.png')
+  plt.savefig('plot/phase_avg_sigma_rainbow.png')
 else:
-  plt.savefig('plot/survey_avg_sigma.png')
+  plt.savefig('plot/phase_avg_sigma.png')
 plt.show()
 
 set_settings('polarization', 'fixed variables')
+plt.ylim(bottom=0.75)
 if RAINBOW:
   color_counter = 0
-  for M in range(M_min, M_max*5 + N/10, N/10):
+  for M in range(12240, 12900, 60):
     if series_count != 0:
       color_ratio = float(color_counter) / series_count
     else:
@@ -108,7 +104,7 @@ if RAINBOW:
     cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
 
     try:
-      step_polar= np.load('plot/survey_pre/survey_{}_step_polar.npy'.format(M))
+      step_polar= np.load('plot/phase_pre/phase_{}_step_polar.npy'.format(M))
       color_counter += 1
     except Exception, e:
       continue
@@ -126,7 +122,7 @@ if RAINBOW:
     plt.scatter(np.array(points_x), np.array(points_y), c=cur_color_sample, marker='.', s=0.01)
 
 color_counter = 0
-for M in range(M_min, M_max*5 + N/10, N/10):
+for M in range(12240, 12900, 60):
   if series_count != 0:
     color_ratio = float(color_counter) / series_count
   else:
@@ -138,7 +134,7 @@ for M in range(M_min, M_max*5 + N/10, N/10):
     cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
 
   try:
-    avg_polar = np.load('plot/survey_pre/survey_{}_avg_polar.npy'.format(M))
+    avg_polar = np.load('plot/phase_pre/phase_{}_avg_polar.npy'.format(M))
     color_counter += 1
   except Exception, e:
     continue
@@ -149,8 +145,8 @@ for M in range(M_min, M_max*5 + N/10, N/10):
   plt.scatter(np.linspace(0, float(size - 1) / N, size), avg_polar, c=cur_color_avg, marker='.', s=0.1)
 
 if RAINBOW:
-  plt.savefig('plot/survey_avg_polar_rainbow.png')
+  plt.savefig('plot/phase_avg_polar_rainbow.png')
 else:
-  plt.savefig('plot/survey_avg_polar.png')
+  plt.savefig('plot/phase_avg_polar.png')
 plt.show()
 
