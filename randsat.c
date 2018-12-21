@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
       int v;
       while (1) {
         int pick = urand(N) + 1;
-        if (!picked[pick]) {
-          picked[pick] = 1;
+        if (!picked[pick - 1]) {
+          picked[pick - 1] = 1;
           v = pick;
           break;
         }

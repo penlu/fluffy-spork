@@ -99,21 +99,43 @@ void graph_free(struct graph *graph) {
 // - check variable and clause numbering (assume in-order for now)
 // - check edges are connected right
 void graph_check(struct graph *graph) {
-  // TODO
-  // annoying: checking it appears the right number of times...
-  /*for (int i = 0; i < graph->N; i++) {
+  for (int i = 0; i < graph->N; i++) {
     assert(graph->v[i].i == i);
-    for (int e = 0; e < graph->v[i].k; e++) {
-      // search for this variable in the connected clause
-      int k = graph->v[i].f[e].f->k;
-      struct edge *v = graph->v[i].f[e].f->v;
-      for (int b = 0; b < k; b++) {
-        
-      }
-    }
   }
 
   for (int a = 0; a < graph->M; a++) {
+    assert(graph->f[a].a == a);
+  }
 
-  }*/
+  // create edge-check memory for variable side
+  int **edge = calloc(graph->N, sizeof(int*));
+  for (int i = 0; i < graph->N; i++) {
+    edge[i] = calloc(graph->v[i].k, sizeof(int));
+  }
+
+  // mark edges in factor side appearing in variable side
+  for (int a = 0; a < graph->M; a++) {
+    for (int e = 0; e < graph->f[a].k; e++) {
+      // search for this edge in the connected clause
+      struct node_v *v = graph->f[a].v[e].v;
+      int ok = 0;
+      for (int b = 0; b < v->k; b++) {
+        if (edge[v->i][b] == 0 && v->f[b].f->a == a && v->f[b].j == graph->f[a].v[e].j) {
+          edge[v->i][b] = 1; // edge is accounted for; no reuse
+          ok = 1;
+          break;
+        }
+      }
+      assert(ok);
+    }
+  }
+  
+  // all variable edges should be marked
+  for (int i = 0; i < graph->N; i++) {
+    for (int a = 0; a < graph->v[i].k; a++) {
+      assert(edge[i][a]);
+    }
+    free(edge[i]);
+  }
+  free(edge);
 }
