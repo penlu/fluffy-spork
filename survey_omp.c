@@ -82,7 +82,6 @@ int main(int argc, char *argv[]) {
   int *zero_th = calloc(8, sizeof(int));
 
   omp_lock_t *flocks = calloc(graph.M, sizeof(omp_lock_t));
-  #pragma omp parallel for num_threads(8)
   for (int a = 0; a < graph.M; a++) {
     omp_init_lock(&flocks[a]);
   }
@@ -407,7 +406,7 @@ int main(int argc, char *argv[]) {
     int *f = calloc(graph.M, sizeof(int)); // 1: satisfied, 0: still unsat
     int ff = 0; // count of satisfied factors
     int would_ff = 0; // would be sat if we picked the other direction
-    #pragma omp parallel for num_threads(8) reduction(+:ff,would_ff)
+    //#pragma omp parallel for num_threads(8) reduction(+:ff,would_ff)
     for (int a = 0; a < graph.v[fix].k; a++) {
       int b = graph.v[fix].f[a].f->a;
       if (f[b] != 1 && graph.v[fix].f[a].j * dir == -1) {
@@ -462,9 +461,15 @@ int main(int argc, char *argv[]) {
     // if the set var sat a clause, then that clause is already gone
     // if the set var doesn't sat a clause, then we still exclude it
     int *new_vi = calloc(ngraph.N, sizeof(int));
-    int ni = 0;
     edges = 0;
+    #pragma omp parallel for num_threads(8) reduction(+:edges)
     for (int i = 0; i < graph.N; i++) {
+      int ni;
+      if (i < fix) {
+        ni = i;
+      } else {
+        ni = i - 1;
+      }
       if (i != fix) { // variable still extant
         // track original index
         new_vi[ni] = orig_vi[i];
@@ -487,11 +492,11 @@ int main(int argc, char *argv[]) {
             ngraph.v[ni].f[vk - 1] = e;
 
             // add edge to clause
-            //omp_set_lock(flocks[na]);
+            omp_set_lock(&flocks[na]);
             int fk = ++ngraph.f[na].k;
             ngraph.f[na].v = realloc(ngraph.f[na].v, fk * sizeof(struct edge));
             ngraph.f[na].v[fk - 1] = e;
-            //omp_release_lock(flocks[na]);
+            omp_unset_lock(&flocks[na]);
 
             // copy old eta
             eta[ni] = realloc(eta[ni], vk * sizeof(float));
@@ -500,7 +505,6 @@ int main(int argc, char *argv[]) {
           }
         }
       }
-      ni++;
     }
 
     // clean up old warnings

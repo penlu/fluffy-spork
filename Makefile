@@ -1,12 +1,12 @@
-#FLAGS=--std=gnu11 -O0 -g
-FLAGS=--std=gnu11 -O3 -g
+FLAGS=--std=gnu11 -O0 -g
+#FLAGS=--std=gnu11 -O3 -g
 
 LD_FLAGS=-lm
 
 all: randsat walk warn survey survey_omp
 
 clean:
-	rm -f randsat walk warn survey inst.o graph.o util.o
+	rm -f randsat walk warn survey survey_omp inst.o graph.o util.o
 
 inst.o: inst.c inst.h
 	gcc $(FLAGS) -c inst.c $(LD_FLAGS)

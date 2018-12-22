@@ -186,6 +186,16 @@ int main(int argc, char *argv[]) {
       printf("survey: unconverged after %d steps\n", steps);
       printf("survey: unconverged\n");
 
+      // clean up products
+      for (int a = 0; a < graph.M; a++) {
+        free(pi_u[a]);
+        free(pi_s[a]);
+        free(pi_0[a]);
+      }
+      free(pi_u);
+      free(pi_s);
+      free(pi_0);
+
       break;
     }
 

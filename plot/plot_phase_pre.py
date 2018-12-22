@@ -26,7 +26,7 @@ for M in range(12240, 12900, 60):
 
     this_sigma = []
     this_polar = []
-    if True or subprocess.call(['grep', 'survey: sat', fn], stdout=devnull, stderr=devnull) == 0:
+    if subprocess.call(['grep', 'survey: sat', fn], stdout=devnull, stderr=devnull) == 0:
       for l in open(fn):
         sig = p_sigma.findall(l)
         if sig:

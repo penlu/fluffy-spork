@@ -32,7 +32,18 @@ for M in range(12240, 12900, 60):
 
 series_count -= 1
 
-RAINBOW=False
+RAINBOW = (len(sys.argv) == 2 and sys.argv[1] == 'r')
+
+def get_color(ratio):
+  rate = -math.pi
+  phase = -2*math.pi/3
+  r = 0.5 + math.cos(ratio * rate + phase)/2
+  g = 0.5 + math.cos(ratio * rate + 2*math.pi/3 + phase)/2
+  b = 0.5 + math.cos(ratio * rate + 4*math.pi/3 + phase)/2
+  return (r, g, b)
+
+def darken(color):
+  return (color[0] / 3, color[1] / 3, color[2] / 3)
 
 # lines per M, all together
 set_settings('sigma (nats)', 'fixed variables')
@@ -43,7 +54,7 @@ if RAINBOW:
       color_ratio = float(color_counter) / series_count
     else:
       color_ratio = 0
-    cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+    cur_color_sample = get_color(color_ratio)
 
     try:
       step_sigma = np.load('plot/phase_pre/phase_{}_step_sigma.npy'.format(M))
@@ -71,9 +82,9 @@ for M in range(12240, 12900, 60):
     color_ratio = 0
 
   if RAINBOW:
-    cur_color_avg = (0., math.cos(color_ratio * math.pi/2)/3, math.sin(color_ratio * math.pi/2)/3)
+    cur_color_avg = darken(get_color(color_ratio))
   else:
-    cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+    cur_color_avg = get_color(color_ratio)
 
   try:
     avg_sigma = np.load('plot/phase_pre/phase_{}_avg_sigma.npy'.format(M))
@@ -101,7 +112,7 @@ if RAINBOW:
       color_ratio = float(color_counter) / series_count
     else:
       color_ratio = 0
-    cur_color_sample = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+    cur_color_sample = get_color(color_ratio)
 
     try:
       step_polar= np.load('plot/phase_pre/phase_{}_step_polar.npy'.format(M))
@@ -129,9 +140,9 @@ for M in range(12240, 12900, 60):
     color_ratio = 0
 
   if RAINBOW:
-    cur_color_avg = (0., math.cos(color_ratio * math.pi/2)/3, math.sin(color_ratio * math.pi/2)/3)
+    cur_color_avg = darken(get_color(color_ratio))
   else:
-    cur_color_avg = (0., math.cos(color_ratio * math.pi/2), math.sin(color_ratio * math.pi/2))
+    cur_color_avg = get_color(color_ratio)
 
   try:
     avg_polar = np.load('plot/phase_pre/phase_{}_avg_polar.npy'.format(M))
