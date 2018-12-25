@@ -6,6 +6,9 @@ import re
 import subprocess
 import sys
 
+RAINBOW = (len(sys.argv) == 2 and sys.argv[1] == 'r')
+NRUNS = 10000000000
+
 # plotting cosmetics
 def set_settings(ylabel, xlabel):
   settings = {
@@ -37,8 +40,6 @@ for M in range(M_min, M_max + N/10, N/10):
 
 series_count -= 1
 
-RAINBOW = (len(sys.argv) == 2 and sys.argv[1] == 'r')
-
 def get_color(ratio):
   rate = -math.pi
   phase = -2*math.pi/3
@@ -51,7 +52,7 @@ def darken(color):
   return (color[0] / 3, color[1] / 3, color[2] / 3)
 
 # lines per M, all together
-set_settings('sigma (nats)', 'fixed variables')
+set_settings('sigma/N (nats)', 'fixed variables')
 if RAINBOW:
   color_counter = 0
   for M in range(M_min, M_max + N/10, N/10):
@@ -71,7 +72,7 @@ if RAINBOW:
     points_y = []
     # destack using numpy?
     for i in range(len(step_sigma)):
-      for j in range(len(step_sigma[i])):
+      for j in range(min(len(step_sigma[i]), NRUNS)):
         points_x += [float(i) / N]
         points_y += [step_sigma[i][j]]
 
@@ -128,7 +129,7 @@ if RAINBOW:
     points_y = []
     # destack using numpy?
     for i in range(len(step_polar)):
-      for j in range(len(step_polar[i])):
+      for j in range(min(len(step_polar[i]), NRUNS)):
         points_x += [float(i) / N]
         points_y += [step_polar[i][j]]
 
