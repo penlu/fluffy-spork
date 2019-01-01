@@ -70,6 +70,7 @@ void fg_init(struct fg *graph, struct inst *inst) {
     graph->fk[a] = k;
 
     // init edge storage
+    // pi*[a][j] is weight (i=fe[j])->a
     graph->fe[a] = calloc(k, sizeof(int));
     graph->fJ[a] = calloc(k, sizeof(int));
 
@@ -92,6 +93,7 @@ void fg_init(struct fg *graph, struct inst *inst) {
       graph->ve[i] = realloc(graph->ve[i], vk * sizeof(int));
       graph->vJ[i] = realloc(graph->vJ[i], vk * sizeof(int));
 
+      // eta[i][b] is survey (a=ve[b])->i
       graph->eta[i] = realloc(graph->eta[i], vk * sizeof(int));
 
       graph->ve[i][vk - 1] = a;
@@ -103,98 +105,101 @@ void fg_init(struct fg *graph, struct inst *inst) {
 // eta[i][a] : a'th factor on var i
 // pi*[a][i] : i'th var on factor a
 void update_pi(struct fg *graph) {
+  float **pi_u = graph->pi_u;
+  float **pi_s = graph->pi_s;
+  float **pi_0 = graph->pi_0;
+
   for (int a = 0; a < graph->M; a++) {
-    for (int i = 0; i < graph->f[a].k; i++) {
+    for (int j = 0; j < graph->fk[a]; i++) {
       // calculate new pi*[a][i], pi*_{i -> a}
-      struct node_v *vi = graph->f[a].v[i].v;
+      int i = graph->fe[a][j];
 
       // calculate products separately
       float pu = 1;
       float ps = 1;
       float p0 = 1;
-      for (int b = 0; b < vi->k; b++) {
-        if (a != vi->f[b].f->a) { // u_{b -> i} for a != b
-          if (vi->f[b].j != graph->f[a].v[i].j) {
+      for (int b = 0; b < graph->vk[i]; b++) {
+        if (a != graph->ve[i][b]) { // u_{b -> i} for a != b
+          if (graph->vJ[i][b] != graph->fJ[a][j]) {
             // different edge type
-            pu *= 1 - eta[vi->i][b];
+            pu *= 1 - eta[i][b];
           } else {
             // same edge type
-            ps *= 1 - eta[vi->i][b];
+            ps *= 1 - eta[i][b];
           }
           // all edges
-          p0 *= 1 - eta[vi->i][b];
+          p0 *= 1 - eta[i][b];
         }
       }
 
-      pi_u[a][i] = ps - p0;
-      pi_s[a][i] = pu - p0;
-      pi_0[a][i] = p0;
+      pi_u[a][j] = ps - p0;
+      pi_s[a][j] = pu - p0;
+      pi_0[a][j] = p0;
 
-      assert(0 <= pi_u[a][i] && pi_u[a][i] <= 1);
-      assert(0 <= pi_s[a][i] && pi_s[a][i] <= 1);
-      assert(0 <= pi_0[a][i] && pi_0[a][i] <= 1);
+      assert(0 <= pi_u[a][j] && pi_u[a][j] <= 1);
+      assert(0 <= pi_s[a][j] && pi_s[a][j] <= 1);
+      assert(0 <= pi_0[a][j] && pi_0[a][j] <= 1);
     }
   }
 }
 
-// return: converged, number of zeros?
+// return: 1 if converged, 0 otherwise
+// new eta is placed into **eta
 int update_eta(struct fg *graph, float **eta) {
-  int zeros = 0;
+  float **pi_u = graph->pi_u;
+  float **pi_s = graph->pi_s;
+  float **pi_0 = graph->pi_0;
 
   for (int i = 0; i < graph->N; i++) {
-    for (int a = 0; a < graph->v[i].k; a++) {
+    for (int b = 0; b < graph->vk[i]; b++) {
       // calculate new eta[i][a], eta_{a -> i}
-      struct node_f *fa = graph->v[i].f[a].f;
-      eta[i][a] = 1;
-      for (int j = 0; j < fa->k; j++) {
-        if (i != fa->v[j].v->i) {
-          float denom = pi_u[fa->a][j] + pi_s[fa->a][j] + pi_0[fa->a][j];
-          if (pi_u[fa->a][j] == 0 && denom == 0) {
-            eta[i][a] = 0;
+      int a = graph->ve[i][b];
+
+      eta[i][b] = 1;
+      for (int j = 0; j < graph->fk[a]; j++) {
+        if (i != graph->fk[a][j]) {
+          float denom = graph->pi_u[a][j] + graph->pi_s[a][j] + graph->pi_0[a][j];
+          if (pi_u[a][j] == 0 && denom == 0) {
+            eta[i][b] = 0;
           } else {
-            eta[i][a] *= pi_u[fa->a][j] / denom;
+            eta[i][b] *= pi_u[a][j] / denom;
           }
         }
       }
+      assert(0 <= eta[i][b] && eta[i][b] <= 1);
 
-      assert(0 <= p_eta[i][a] && p_eta[i][a] <= 1);
-
-      if (absd(eta[i][a] - p_eta[i][a]) > TOLERANCE) {
+      if (absd(eta[i][b] - graph->eta[i][b]) > TOLERANCE) {
         *converged = 0;
-      }
-      if (absd(eta[i][a]) < TOLERANCE) {
-        zeros++;
       }
     }
   }
 
-  return zeros;
+  return converged;
 }
 
-int update_surveys(
-  struct graph *graph,
-  float **eta, float **p_eta,
-  float **pi_u, float **pi_s, float **pi_0,
-  int max_iters)
-{
+// return number of iters
+int update_surveys(struct graph *graph, int max_iters) {
   int iters;
   int converged = 0;
-  int zeros;
+
+  // create new survey storage
+  // eta[i][a] is survey a->i
+  float **eta = calloc(graph.N, sizeof(float*));
+  for (int i = 0; i < graph.N; i++) {
+    eta[i] = calloc(graph->vk[i], sizeof(float));
+  }
+
   for (iters = 0; iters < max_iters && !converged; iters++) {
-    converged = 1;
-
     // compute fields pi*
-    calc_pi(&graph, p_eta, pi_u, pi_s, pi_0);
-
-    // create new survey storage
-    // eta[i][a] is survey a->i
-    float **eta = calloc(graph.N, sizeof(float*));
-    for (int i = 0; i < graph.N; i++) {
-      eta[i] = calloc(graph.v[i].k, sizeof(float));
-    }
+    update_pi(graph);
 
     // compute new surveys eta
-    zeros = calc_eta(&graph, eta, p_eta, pi_u, pi_s, pi_0, &converged);
+    converged = calc_eta(&graph, eta);
+
+    // swap in new surveys
+    float **tmp = graph->eta;
+    graph->eta = eta;
+    eta = tmp;
   }
 
   return iters;
@@ -225,37 +230,12 @@ int main(int argc, char *argv[]) {
   struct fg graph;
   fg_init(&graph, &inst);
 
-  // create survey storage: two copies for buffer swapping
-  // eta[i][a] is survey a->i
-  float **p_eta = calloc(graph.N, sizeof(float*));
-  for (int i = 0; i < graph.N; i++) {
-    p_eta[i] = calloc(graph.v[i].k, sizeof(float));
-  }
-
-  float **eta = calloc(graph.N, sizeof(float*));
-  for (int i = 0; i < graph.N; i++) {
-    eta[i] = calloc(graph.v[i].k, sizeof(float));
-  }
-
   // randomly initialize surveys
-  int edges = 0;
   for (int i = 0; i < graph.N; i++) {
     for (int a = 0; a < graph.v[i].k; a++) {
-      p_eta[i][a] = (float) urand(1 << 30) / ((1 << 30) - 1);
-      assert(0 <= eta[i][a] && eta[i][a] <= 1);
-      edges++;
+      graph->eta[i][a] = (float) urand(1 << 30) / ((1 << 30) - 1);
+      assert(0 <= graph->eta[i][a] && graph->eta[i][a] <= 1);
     }
-  }
-
-  // create weight storage (pi values, effectively cavity fields)
-  // pi*[a][i] is weight i->a
-  float **pi_u = calloc(graph.M, sizeof(float*));
-  float **pi_s = calloc(graph.M, sizeof(float*));
-  float **pi_0 = calloc(graph.M, sizeof(float*));
-  for (int a = 0; a < graph.M; a++) {
-    pi_u[a] = calloc(graph.f[a].k, sizeof(float));
-    pi_s[a] = calloc(graph.f[a].k, sizeof(float));
-    pi_0[a] = calloc(graph.f[a].k, sizeof(float));
   }
 
   // XXX parallel update; is the random order important?
@@ -283,6 +263,59 @@ int main(int argc, char *argv[]) {
     }
 
     printf("survey: %d steps: converged in %d iters\n", steps, iters);
+
+    // check for trivial surveys
+    for (int i = 0; i < graph->N; i++) {
+      for (int b = 0; b < graph->vk[i]; b++) {
+        if (absd(graph->eta[i][b]) > TOLERANCE) {
+          goto non_trivial;
+        }
+      }
+    }
+
+    // all surveys zero: start walking
+    printf("survey: %d steps %d iters\n", steps, iters);
+    printf("survey: starting walk at %d steps\n", steps);
+    printf("survey: surveys trivial\n");
+
+    int *v;
+    int *c;
+    int walk_steps = walk(max_steps, p_param, PRINT_FREQ*10, &graph, &v, &c);
+
+    // save walk settings
+    for (int i = 0; i < graph.N; i++) {
+      orig_v[orig_vi[i]] = v[i] * 2 - 1;
+    }
+
+    // process sat/unsat here
+    if (walk_steps == -1) {
+      printf("survey: %d steps %d walk\n", steps, walk_steps);
+      printf("survey: walk unsat\n");
+      printf("survey: unsat\n");
+    } else if (walk_steps < max_steps) {
+      printf("survey: %d steps %d walk\n", steps, walk_steps);
+      printf("survey: sat\n");
+
+      // output sat assignment
+      for (int i = 0; i < N; i++) {
+        assert(orig_v[i] != 0);
+        printf("%d ", (orig_v[i] + 1) / 2);
+      }
+      printf("\n");
+    } else {
+      printf("survey: %d steps %d walk\n", steps, walk_steps);
+      printf("survey: walk timed out\n");
+      printf("survey: unknown after %d steps\n", steps);
+      printf("survey: unknown\n");
+    }
+
+    // clean up walk
+    free(v);
+    free(c);
+
+    break;
+
+non_trivial:
 
     // calculate clause complexities
     float sigma = 0;
@@ -352,59 +385,6 @@ int main(int argc, char *argv[]) {
     }
 
     printf("survey: %d steps sigma/N %.*e\n", steps, FLT_DIG, sigma / graph.N);
-
-    // all surveys zero: start walking
-    if (zeros == edges) {
-      printf("survey: %d steps %d iters\n", steps, iters);
-      printf("survey: starting walk at %d steps\n", steps);
-      printf("survey: surveys trivial\n");
-
-      int *v;
-      int *c;
-      int walk_steps = walk(max_steps, p_param, PRINT_FREQ*10, &graph, &v, &c);
-
-      // save walk settings
-      for (int i = 0; i < graph.N; i++) {
-        orig_v[orig_vi[i]] = v[i] * 2 - 1;
-      }
-
-      // process sat/unsat here
-      if (walk_steps == -1) {
-        printf("survey: %d steps %d walk\n", steps, walk_steps);
-        printf("survey: walk unsat\n");
-        printf("survey: unsat\n");
-      } else if (walk_steps < max_steps) {
-        printf("survey: %d steps %d walk\n", steps, walk_steps);
-        printf("survey: sat\n");
-
-        // output sat assignment
-        for (int i = 0; i < N; i++) {
-          assert(orig_v[i] != 0);
-          printf("%d ", (orig_v[i] + 1) / 2);
-        }
-        printf("\n");
-      } else {
-        printf("survey: %d steps %d walk\n", steps, walk_steps);
-        printf("survey: walk timed out\n");
-        printf("survey: unknown after %d steps\n", steps);
-        printf("survey: unknown\n");
-      }
-
-      // clean up walk
-      free(v);
-      free(c);
-
-      // clean up biases
-      free(Wp);
-      free(Wm);
-      free(W0);
-
-      // clean up complexities
-      free(sigma_a);
-      free(sigma_i);
-
-      break;
-    }
 
     // fix variables according to biases and simplify clauses
 
