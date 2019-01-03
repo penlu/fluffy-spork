@@ -248,7 +248,7 @@ void update_biases(struct fg *graph) {
       } else {
         pm *= 1 - graph->eta[i][b];
       }
-      // all edges
+
       p0 *= 1 - graph->eta[i][b];
     }
 
@@ -271,7 +271,7 @@ void update_biases(struct fg *graph) {
     if (pi_0 == 0) {
       graph->W0[i] = 0;
     } else {
-      graph->W0[i] = pi_0 / denom; // more numerically stable than 1 - Wp[i] - Wm[i]
+      graph->W0[i] = pi_0 / denom;
     }
 
     // accumulate variable complexity
@@ -587,187 +587,19 @@ void walk_fg(struct fg *graph, int *va) {
   return steps;
 }
 
-// slightly better, slightly buggy walksat with good perf
-int walk2(int max_steps, int p_param, int print_freq, struct graph *graph, int **vr, int **cr) {
-  int N = graph->N;
-  int M = graph->M;
-
-  // maintain variable settings
-  int *v = calloc(N, sizeof(int));
-  if (vr) {
-    *vr = v;
-  }
-
-  // maintain clause sat counts
-  int *c = calloc(M, sizeof(int));
-  if (cr) {
-    *cr = c;
-  }
-
-  // maintain clause sat counts
-  for (int a = 0; a < M; a++) {
-    if (graph->f[a].k == 0) {
-      printf("walk: clause %d empty\n", a);
-      printf("walk: unsat\n");
-
-      return -1;
-    }
-    for (int b = 0; b < graph->f[a].k; b++) {
-      int i = graph->f[a].v[b].v->i;
-      if (graph->f[a].v[b].j == 1 - v[i] * 2) {
-        c[a]++;
-      }
-    }
-  }
-
-  // initiate walksat
-  int steps;
-  for (steps = 0; steps < max_steps; steps++) {
-    // gather unsat clauses
-    // TODO incrementalize this
-    int u = 0;
-    int *unsat = NULL;
-    for (int a = 0; a < M; a++) {
-      if (c[a] == 0) {
-        u++;
-        unsat = realloc(unsat, u * sizeof(int));
-        unsat[u - 1] = a;
-      }
-    }
-
-    // check sat
-    if (u == 0) {
-      printf("walk: %d steps\n", steps);
-      printf("walk: sat\n");
-      for (int i = 0; i < N; i++) {
-        printf("%d ", v[i]);
-      }
-      printf("\n");
-      break;
-    }
-
-    // status printout
-    if (print_freq && steps % print_freq == 0) {
-      printf("walk: %d steps: %d unsat\n", steps, u);
-    }
-
-    // select random unsat clause
-    int uc = unsat[urand(u)];
-    free(unsat);
-
-    // pick a var to flip in clause uc
-    int flip;
-    if (urand(100) < p_param) {
-      // flip a random var in the clause
-      flip = urand(graph->f[uc].k);
-
-      assert(flip < graph->f[uc].k);
-    } else {
-      // flip a var that minimizes the number of clauses unsat
-
-      // count how many clauses each flip would leave unsat
-      struct node_f ff = graph->f[uc];
-      int *funsat = calloc(ff.k, sizeof(int));
-      for (int b = 0; b < ff.k; b++) {
-        struct node_v *vf = ff.v[b].v;
-        int newv = !v[vf->i]; // what we'd flip this var to
-        for (int m = 0; m < vf->k; m++) {
-          int j = vf->f[m].j; // coefficient
-          int a = vf->f[m].f->a;
-
-          // increment funsat if this flip would kill the last sat var
-          if (c[a] == 1 && j == newv*2 - 1) {
-            funsat[b]++;
-          }
-
-          // shouldn't be able to kill a sat var in someone with no sat vars
-          assert(c[a] != 0 || j != newv*2 - 1);
-        }
-      }
-
-      // pick randomly amongst flips minimizing the number unsat
-      // count ties
-      int min = M + 1;
-      int ties = 0;
-      for (int b = 0; b < ff.k; b++) {
-        if (funsat[b] < min) {
-          min = funsat[b];
-          ties = 0;
-        } else if (funsat[b] == min) {
-          ties++;
-        }
-      }
-      assert(min != M + 1);
-
-      // random pick with tiebreaker
-      int orig = urand(ties + 1);
-      int tiebreak = orig;
-      for (int b = 0; b < ff.k; b++) {
-        if (funsat[b] == min && tiebreak == 0) {
-          flip = b;
-          break;
-        } else if (funsat[b] == min) {
-          tiebreak--;
-        }
-      }
-
-      free(funsat);
-
-      assert(flip < graph->f[uc].k);
-    }
-    assert(flip < graph->f[uc].k);
-
-    // flip the var and propagate new sat counts
-    struct node_v *vf = graph->f[uc].v[flip].v;
-    int newv = !v[vf->i];
-    v[vf->i] = newv;
-    for (int m = 0; m < vf->k; m++) {
-      int j = vf->f[m].j; // coefficient
-      int a = vf->f[m].f->a;
-
-      c[a] += j*(1 - 2*newv); // modify sat count correctly
-    }
-  }
-
-  // clean up
-  if (!vr) {
-    free(v);
-  }
-  if (!cr) {
-    free(c);
-  }
-
-  return steps;
-}
-
-int main(int argc, char *argv[]) {
-  if (argc != 4) {
-    printf("./survey iters steps p\n");
-    exit(0);
-  }
-
-  // read command line parameters
-  int max_iters = strtol(argv[1], NULL, 0);
-  int max_steps = strtol(argv[2], NULL, 0); // for walking
-  int p_param = strtol(argv[3], NULL, 0);   // for walking
-
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  srand((unsigned int) ts.tv_nsec);
-
-  // parse input instance
-  struct inst inst;
-  inst_parse(&inst);
-  int N = inst.N;
-  int M = inst.M;
-
+// possible returns:
+// 0 - sat
+// 1 - unsat in sp
+// 2 - unconverged
+// 3 - walksat timed out
+int sp(struct fg *graph, int *v) {
   // convert instance to internal representation
   struct fg graph;
   fg_init(&graph, &inst);
 
   // randomly initialize surveys
-  for (int i = 0; i < graph.N; i++) {
-    for (int b = 0; b < graph.vk[i]; b++) {
+  for (int i = 0; i < graph->N; i++) {
+    for (int b = 0; b < graph->vk[i]; b++) {
       graph->eta[i][b] = (float) urand(1 << 30) / ((1 << 30) - 1);
       assert(0 <= graph->eta[i][b] && graph->eta[i][b] <= 1);
     }
@@ -775,13 +607,13 @@ int main(int argc, char *argv[]) {
 
   int steps = 0;
   int tot_iters = 0;
-  while (graph.N != 0) {
+  while (graph->N != 0) {
     //graph_check(&graph);
-    assert(graph.N > 0);
-    assert(graph.M >= 0);
+    assert(graph->N > 0);
+    assert(graph->M >= 0);
 
     // update surveys for max_iters timesteps
-    int iters = update_surveys(&graph, max_iters, eta);
+    int iters = update_surveys(graph, max_iters, eta);
 
     tot_iters += iters - 1;
 
@@ -858,24 +690,45 @@ non_trivial:
 
     steps++;
   }
+}
 
-  printf("survey: %d iters total\n", tot_iters);
+int main(int argc, char *argv[]) {
+  if (argc != 4) {
+    printf("./survey iters steps p\n");
+    exit(0);
+  }
+
+  // read command line parameters
+  int max_iters = strtol(argv[1], NULL, 0);
+  int max_steps = strtol(argv[2], NULL, 0); // for walking
+  int p_param = strtol(argv[3], NULL, 0);   // for walking
+
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  srand((unsigned int) ts.tv_nsec);
+
+  // parse input instance
+  struct inst inst;
+  inst_parse(&inst);
+  int N = inst.N;
+  int M = inst.M;
+
+  // variable assignment storage
+  int *assigns = calloc(N, sizeof(int));
+
+  // run survey prop
+  int res = sp(&inst, assigns);
 
   // double-check sat of final assignment
-  int *assigns = calloc(N, sizeof(int));
-  for (int i = 0; i < N; i++) {
-    assigns[i] = (orig_v[i] + 1) / 2;
-  }
   int unsat_c = inst_check(&inst, assigns);
   if (unsat_c) {
     printf("UNSAT! clause %d\n", unsat_c);
   }
-  assert(graph.N != 0 || unsat_c == 0);
+
   free(assigns);
 
   // clean up
   inst_free(&inst);
-  fg_free(&graph);
 
   return 0;
 }
