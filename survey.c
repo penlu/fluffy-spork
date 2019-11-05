@@ -1,7 +1,12 @@
-// Simple sat solve using survey-inspired decimation.
+// SAT solve with decimation based on survey propagation.
 
-// Invoke with: ./survey iters steps p
-// e.g.: ./survey 10000 1000 30
+/* Invoke with: ./survey iters steps p
+ * e.g.: ./survey 10000 1000 30
+ *
+ * iters: number of survey propagation iterations to run
+ * steps: number of walksat steps to perform
+ * p: probability of arbitrary flip during walksat
+ */
 
 // provide the instance on stdin
 #include <stdio.h>
@@ -10,6 +15,7 @@
 #include <float.h>
 #include <math.h>
 #include <time.h>
+#include <omp.h>
 
 #include "graph.h"
 #include "inst.h"
@@ -29,6 +35,7 @@ int main(int argc, char *argv[]) {
   int max_steps = strtol(argv[2], NULL, 0); // for walking
   int p_param = strtol(argv[3], NULL, 0);   // for walking
 
+  // start timer
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   srand((unsigned int) ts.tv_nsec);
@@ -76,6 +83,15 @@ int main(int argc, char *argv[]) {
   int tot_iters = 0;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   unsigned int start = ts.tv_sec;
+
+  int *conv_th = calloc(8, sizeof(int));
+  int *zero_th = calloc(8, sizeof(int));
+
+  omp_lock_t *flocks = calloc(graph.M, sizeof(omp_lock_t));
+  for (int a = 0; a < graph.M; a++) {
+    omp_init_lock(&flocks[a]);
+  }
+
   while (graph.N != 0) {
     //graph_check(&graph);
     assert(graph.N > 0);
@@ -97,9 +113,9 @@ int main(int argc, char *argv[]) {
     int converged = 0;
     int zeros = 0;
     for (iters = 0; iters < max_iters && !converged; iters++) {
-      converged = 1;
-
+      //printf("iter %d\n", iters);
       // compute fields pi*
+      #pragma omp parallel for num_threads(8)
       for (int a = 0; a < graph.M; a++) {
         for (int i = 0; i < graph.f[a].k; i++) {
           // calculate new pi*[a][i], pi*_{i -> a}
@@ -141,8 +157,9 @@ int main(int argc, char *argv[]) {
       }
 
       // compute new surveys eta
-      zeros = 0;
+      #pragma omp parallel for num_threads(8)
       for (int i = 0; i < graph.N; i++) {
+        int tid = omp_get_thread_num();
         for (int a = 0; a < graph.v[i].k; a++) {
           // calculate new eta[i][a], eta_{a -> i}
           struct node_f *fa = graph.v[i].f[a].f;
@@ -161,12 +178,26 @@ int main(int argc, char *argv[]) {
           assert(0 <= p_eta[i][a] && p_eta[i][a] <= 1);
 
           if (absd(eta[i][a] - p_eta[i][a]) > TOLERANCE) {
-            converged = 0;
+            conv_th[tid] = 0;
           }
           if (absd(eta[i][a]) < TOLERANCE) {
-            zeros++;
+            zero_th[tid]++;
           }
         }
+      }
+
+      // accumulate convergence
+      converged = 1;
+      for (int i = 0; i < 8; i++) {
+        converged = converged && conv_th[i];
+        conv_th[i] = 1;
+      }
+
+      // accumulate zeros
+      zeros = 0;
+      for (int i = 0; i < 8; i++) {
+        zeros += zero_th[i];
+        zero_th[i] = 0;
       }
 
       // clean up old warnings
@@ -186,16 +217,6 @@ int main(int argc, char *argv[]) {
       printf("survey: unconverged after %d steps\n", steps);
       printf("survey: unconverged\n");
 
-      // clean up products
-      for (int a = 0; a < graph.M; a++) {
-        free(pi_u[a]);
-        free(pi_s[a]);
-        free(pi_0[a]);
-      }
-      free(pi_u);
-      free(pi_s);
-      free(pi_0);
-
       break;
     }
 
@@ -204,6 +225,7 @@ int main(int argc, char *argv[]) {
     // calculate clause complexities
     float sigma = 0;
     float *sigma_a = calloc(graph.M, sizeof(float));
+    #pragma omp parallel for num_threads(8) reduction(+:sigma)
     for (int a = 0; a < graph.M; a++) {
       float prod_u = 1;
       float prod_denom = 1;
@@ -231,6 +253,7 @@ int main(int argc, char *argv[]) {
     float *Wm = calloc(graph.N, sizeof(float));
     float *W0 = calloc(graph.N, sizeof(float));
     float *sigma_i = calloc(graph.N, sizeof(float));
+    #pragma omp parallel for num_threads(8) reduction(-:sigma)
     for (int i = 0; i < graph.N; i++) {
       float pp = 1;
       float pm = 1;
@@ -389,14 +412,15 @@ int main(int argc, char *argv[]) {
     int *f = calloc(graph.M, sizeof(int)); // 1: satisfied, 0: still unsat
     int ff = 0; // count of satisfied factors
     int would_ff = 0; // would be sat if we picked the other direction
+    //#pragma omp parallel for num_threads(8) reduction(+:ff,would_ff)
     for (int a = 0; a < graph.v[fix].k; a++) {
       int b = graph.v[fix].f[a].f->a;
       if (f[b] != 1 && graph.v[fix].f[a].j * dir == -1) {
-        ff++;
+        ff += 1;
         f[b] = 1;
       }
       if (f[b] * dir == 1) {
-        would_ff++;
+        would_ff += 1;
       }
     }
     //printf("survey: set %d to %d sat %d (vs. %d)\n", fix, dir, ff, would_ff);
@@ -407,7 +431,8 @@ int main(int argc, char *argv[]) {
     int fa = 0;
     for (int a = 0; a < graph.M; a++) {
       if (f[a] == 0) {
-        nf[a] = fa++;
+        nf[a] = fa;
+        fa++;
       }
     }
     assert(ff + fa == graph.M);
@@ -421,12 +446,14 @@ int main(int argc, char *argv[]) {
 
     // create storage for unfixed variables
     ngraph.v = calloc(ngraph.N, sizeof(struct node_v));
+    #pragma omp parallel for num_threads(8)
     for (int i = 0; i < ngraph.N; i++) {
       ngraph.v[i].i = i;
     }
 
     // create storage for unfixed clauses
     ngraph.f = calloc(ngraph.M, sizeof(struct node_f));
+    #pragma omp parallel for num_threads(8)
     for (int a = 0; a < ngraph.M; a++) {
       ngraph.f[a].a = a;
     }
@@ -440,9 +467,15 @@ int main(int argc, char *argv[]) {
     // if the set var sat a clause, then that clause is already gone
     // if the set var doesn't sat a clause, then we still exclude it
     int *new_vi = calloc(ngraph.N, sizeof(int));
-    int ni = 0;
     edges = 0;
+    #pragma omp parallel for num_threads(8) reduction(+:edges)
     for (int i = 0; i < graph.N; i++) {
+      int ni;
+      if (i < fix) {
+        ni = i;
+      } else {
+        ni = i - 1;
+      }
       if (i != fix) { // variable still extant
         // track original index
         new_vi[ni] = orig_vi[i];
@@ -465,9 +498,11 @@ int main(int argc, char *argv[]) {
             ngraph.v[ni].f[vk - 1] = e;
 
             // add edge to clause
+            omp_set_lock(&flocks[na]);
             int fk = ++ngraph.f[na].k;
             ngraph.f[na].v = realloc(ngraph.f[na].v, fk * sizeof(struct edge));
             ngraph.f[na].v[fk - 1] = e;
+            omp_unset_lock(&flocks[na]);
 
             // copy old eta
             eta[ni] = realloc(eta[ni], vk * sizeof(float));
@@ -475,8 +510,6 @@ int main(int argc, char *argv[]) {
             edges++;
           }
         }
-
-        ni++;
       }
     }
 
@@ -523,6 +556,14 @@ int main(int argc, char *argv[]) {
     graph = ngraph;
 
     steps++;
+  }
+
+  free(zero_th);
+  free(conv_th);
+
+  #pragma omp parallel for num_threads(8)
+  for (int a = 0; a < graph.M; a++) {
+    omp_destroy_lock(&flocks[a]);
   }
 
   printf("survey: %d iters total\n", tot_iters);

@@ -18,7 +18,7 @@ int urand(int max) {
   }
 }
 
-double absd(double x) {
+float absd(float x) {
   return x > 0 ? x : -x;
 }
 

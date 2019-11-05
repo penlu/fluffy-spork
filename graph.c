@@ -1,5 +1,6 @@
 // create factor graph from instance
-// don't run on malformed instance
+
+// a factor graph is a set of variables and clauses
 
 #include <stdio.h>
 #include <stdlib.h>

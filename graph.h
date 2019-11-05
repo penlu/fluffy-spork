@@ -8,13 +8,13 @@ struct edge {
 };
 
 struct node_v {
-  int i;            // which variable is this
+  int i;            // variable ID
   int k;            // number of clauses
   struct edge *f;   // attached clause list
 };
 
 struct node_f {
-  int a;            // which clause is this
+  int a;            // clause ID
   int k;            // number of variables
   struct edge *v;   // attached variable list
 };
@@ -29,5 +29,4 @@ struct graph {
 void graph_make(struct graph *graph, struct inst *inst);  // make graph from inst
 void graph_show(struct graph *graph);   // print dump of a graph
 void graph_free(struct graph *graph);   // free the contents of a graph
-
 void graph_check(struct graph *graph);  // sanity check a graph
